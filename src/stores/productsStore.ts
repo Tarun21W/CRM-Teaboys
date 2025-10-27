@@ -58,8 +58,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
     return products.filter(
       (p) =>
         p.name.toLowerCase().includes(lowerQuery) ||
-        p.sku?.toLowerCase().includes(lowerQuery) ||
-        p.barcode?.includes(query)
+        p.sku?.toLowerCase().includes(lowerQuery)
     )
   },
 

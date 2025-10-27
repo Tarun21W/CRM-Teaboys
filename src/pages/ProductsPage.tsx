@@ -43,7 +43,7 @@ export default function ProductsPage() {
     name: '',
     category_id: '',
     sku: '',
-    barcode: '',
+    barcode: null,
     unit: 'pcs',
     selling_price: '',
     current_stock: '',
@@ -163,7 +163,7 @@ export default function ProductsPage() {
       name: '',
       category_id: '',
       sku: '',
-      barcode: '',
+      barcode: null,
       unit: 'pcs',
       selling_price: '',
       current_stock: '',
@@ -265,8 +265,8 @@ export default function ProductsPage() {
                     <td className="px-6 py-4">
                       <div>
                         <div className="font-medium">{product.name}</div>
-                        {product.barcode && (
-                          <div className="text-xs text-gray-500">Barcode: {product.barcode}</div>
+                        {product.sku && (
+                          <div className="text-xs text-gray-500">SKU: {product.sku}</div>
                         )}
                       </div>
                     </td>
@@ -361,11 +361,6 @@ export default function ProductsPage() {
               label="SKU"
               value={formData.sku}
               onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-            />
-            <Input
-              label="Barcode"
-              value={formData.barcode}
-              onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
             />
           </div>
 

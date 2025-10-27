@@ -191,7 +191,7 @@ export default function POSPage() {
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Search products or scan barcode... (F2)"
+              placeholder="Search products by name or SKU... (F2)"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-3 border rounded-lg text-lg focus:ring-2 focus:ring-primary-500"
