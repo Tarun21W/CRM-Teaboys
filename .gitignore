@@ -1,0 +1,93 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+
+# Production
+dist/
+build/
+out/
+
+# Environment Variables (NEVER COMMIT THESE!)
+.env
+.env.local
+.env.production
+.env.production.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+
+# Supabase
+.supabase/
+**/supabase/.branches/
+**/supabase/.temp/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+pnpm-debug.log*
+
+# PWA
+sw.js
+workbox-*.js
+public/sw.js
+public/workbox-*.js
+
+# Build artifacts
+*.tsbuildinfo
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.vuepress/dist/
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+backup.sql
+
+# Vercel
+.vercel
+
+# Misc
+.eslintcache
+.stylelintcache
