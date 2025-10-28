@@ -16,6 +16,7 @@ interface ProductReport {
   product_name: string
   quantity_sold: number
   revenue: number
+  cost: number
   profit: number
 }
 
@@ -120,6 +121,7 @@ export default function ReportsPage() {
         product_name: name,
         quantity_sold: data.quantity_sold,
         revenue: data.revenue,
+        cost: data.cost,
         profit: data.revenue - data.cost
       })).sort((a, b) => b.revenue - a.revenue)
 
@@ -378,25 +380,36 @@ export default function ReportsPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Qty Sold</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Revenue</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cost</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Profit</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Margin %</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
                     {productData.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                        <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                           No product data for selected period
                         </td>
                       </tr>
                     ) : (
-                      productData.map((row, idx) => (
-                        <tr key={idx}>
-                          <td className="px-4 py-3 font-medium">{row.product_name}</td>
-                          <td className="px-4 py-3">{row.quantity_sold}</td>
-                          <td className="px-4 py-3 font-bold text-green-600">{formatCurrency(row.revenue)}</td>
-                          <td className="px-4 py-3 font-bold text-blue-600">{formatCurrency(row.profit)}</td>
-                        </tr>
-                      ))
+                      productData.map((row, idx) => {
+                        const margin = row.revenue > 0 ? ((row.profit / row.revenue) * 100) : 0
+                        return (
+                          <tr key={idx}>
+                            <td className="px-4 py-3 font-medium">{row.product_name}</td>
+                            <td className="px-4 py-3">{row.quantity_sold}</td>
+                            <td className="px-4 py-3 font-bold text-green-600">{formatCurrency(row.revenue)}</td>
+                            <td className="px-4 py-3 text-orange-600">{formatCurrency(row.cost)}</td>
+                            <td className="px-4 py-3 font-bold text-blue-600">{formatCurrency(row.profit)}</td>
+                            <td className="px-4 py-3">
+                              <span className={`font-semibold ${margin >= 30 ? 'text-green-600' : margin >= 15 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                {margin.toFixed(1)}%
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })
                     )}
                   </tbody>
                 </table>
