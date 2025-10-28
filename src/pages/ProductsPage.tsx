@@ -49,6 +49,8 @@ export default function ProductsPage() {
     current_stock: '',
     weighted_avg_cost: '',
     reorder_level: '',
+    purchase_date: '',
+    expiration_date: '',
     is_raw_material: false,
     is_finished_good: true,
   })
@@ -90,11 +92,13 @@ export default function ProductsPage() {
 
     const productData = {
       ...formData,
-      selling_price: parseFloat(formData.selling_price),
+      selling_price: formData.is_finished_good ? parseFloat(formData.selling_price) : 0,
       current_stock: parseFloat(formData.current_stock),
       weighted_avg_cost: parseFloat(formData.weighted_avg_cost || '0'),
       reorder_level: parseFloat(formData.reorder_level || '0'),
       category_id: formData.category_id || null,
+      purchase_date: formData.purchase_date || null,
+      expiration_date: formData.expiration_date || null,
     }
 
     try {
@@ -169,6 +173,8 @@ export default function ProductsPage() {
       current_stock: '',
       weighted_avg_cost: '',
       reorder_level: '',
+      purchase_date: '',
+      expiration_date: '',
       is_raw_material: false,
       is_finished_good: true,
     })
@@ -365,14 +371,16 @@ export default function ProductsPage() {
           </div>
 
           <div className="grid grid-cols-3 gap-4">
-            <Input
-              label="Selling Price *"
-              type="number"
-              step="0.01"
-              value={formData.selling_price}
-              onChange={(e) => setFormData({ ...formData, selling_price: e.target.value })}
-              required
-            />
+            {formData.is_finished_good && (
+              <Input
+                label="Selling Price *"
+                type="number"
+                step="0.01"
+                value={formData.selling_price}
+                onChange={(e) => setFormData({ ...formData, selling_price: e.target.value })}
+                required={formData.is_finished_good}
+              />
+            )}
             <Input
               label="Current Stock *"
               type="number"
@@ -404,11 +412,12 @@ export default function ProductsPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Cost Price"
+              label={formData.is_raw_material ? "Cost Price *" : "Cost Price"}
               type="number"
               step="0.01"
               value={formData.weighted_avg_cost}
               onChange={(e) => setFormData({ ...formData, weighted_avg_cost: e.target.value })}
+              required={formData.is_raw_material}
             />
             <Input
               label="Reorder Level"
@@ -418,6 +427,23 @@ export default function ProductsPage() {
               onChange={(e) => setFormData({ ...formData, reorder_level: e.target.value })}
             />
           </div>
+
+          {formData.is_raw_material && (
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Purchase Date"
+                type="date"
+                value={formData.purchase_date}
+                onChange={(e) => setFormData({ ...formData, purchase_date: e.target.value })}
+              />
+              <Input
+                label="Expiration Date"
+                type="date"
+                value={formData.expiration_date}
+                onChange={(e) => setFormData({ ...formData, expiration_date: e.target.value })}
+              />
+            </div>
+          )}
 
           <div className="flex gap-4">
             <label className="flex items-center gap-2">
