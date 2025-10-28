@@ -229,43 +229,8 @@ export default function ProductionPage() {
 
       if (prodError) throw prodError
 
-      // Deduct ingredients from stock
-      if (recipe.recipe_lines) {
-        for (const line of recipe.recipe_lines) {
-          const quantityToDeduct = line.quantity * scaleFactor
-
-          const { data: currentProduct } = await supabase
-            .from('products')
-            .select('current_stock')
-            .eq('id', line.ingredient_id)
-            .single()
-
-          if (currentProduct) {
-            await supabase
-              .from('products')
-              .update({ 
-                current_stock: currentProduct.current_stock - quantityToDeduct 
-              })
-              .eq('id', line.ingredient_id)
-          }
-        }
-      }
-
-      // Add produced quantity to finished product stock
-      const { data: finishedProduct } = await supabase
-        .from('products')
-        .select('current_stock')
-        .eq('id', recipe.product_id)
-        .single()
-
-      if (finishedProduct) {
-        await supabase
-          .from('products')
-          .update({ 
-            current_stock: finishedProduct.current_stock + parseFloat(productionForm.quantity_produced)
-          })
-          .eq('id', recipe.product_id)
-      }
+      // Inventory is automatically updated by database trigger
+      // No need to manually update stock here
 
       toast.success(`Production batch ${batchNum} created successfully`)
       setShowProductionModal(false)
