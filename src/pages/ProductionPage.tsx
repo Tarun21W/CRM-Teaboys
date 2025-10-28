@@ -192,25 +192,12 @@ export default function ProductionPage() {
       const recipe = recipes.find(r => r.id === productionForm.recipe_id)
       if (!recipe) throw new Error('Recipe not found')
 
-      // Calculate production cost from recipe ingredients
-      let productionCost = 0
-      if (recipe.recipe_lines) {
-        for (const line of recipe.recipe_lines) {
-          const { data: ingredient } = await supabase
-            .from('products')
-            .select('weighted_avg_cost')
-            .eq('id', line.ingredient_id)
-            .single()
-          
-          if (ingredient) {
-            productionCost += ingredient.weighted_avg_cost * line.quantity
-          }
-        }
-      }
-
-      // Scale cost based on quantity produced vs batch size
-      const scaleFactor = parseFloat(productionForm.quantity_produced) / recipe.batch_size
-      productionCost = productionCost * scaleFactor
+      // Calculate production cost using the database function (with unit conversion)
+      const { data: costData } = await supabase
+        .rpc('calculate_recipe_cost', { p_product_id: recipe.product_id })
+      
+      const costPerUnit = costData || 0
+      const productionCost = costPerUnit * parseFloat(productionForm.quantity_produced)
 
       // Insert production run
       const { data: productionRun, error: prodError } = await supabase
