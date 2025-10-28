@@ -117,8 +117,8 @@ export default function ProductionPage() {
     const { data } = await supabase
       .from('products')
       .select('*')
-      .eq('is_finished_good', true)
       .eq('is_active', true)
+      .order('name')
 
     if (data) setProducts(data)
   }
@@ -437,9 +437,20 @@ export default function ProductionPage() {
                 required
               >
                 <option value="">Select Product</option>
-                {products.map(product => (
-                  <option key={product.id} value={product.id}>{product.name}</option>
-                ))}
+                <optgroup label="Finished Goods">
+                  {products.filter(p => p.is_finished_good).map(product => (
+                    <option key={product.id} value={product.id}>
+                      {product.name} - ₹{product.selling_price}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Raw Materials">
+                  {products.filter(p => p.is_raw_material && !p.is_finished_good).map(product => (
+                    <option key={product.id} value={product.id}>
+                      {product.name} - ₹{product.weighted_avg_cost}/unit
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -484,11 +495,20 @@ export default function ProductionPage() {
                       className="w-full px-3 py-2 border rounded-lg text-sm"
                     >
                       <option value="">Select Ingredient</option>
-                      {rawMaterials.map(material => (
-                        <option key={material.id} value={material.id}>
-                          {material.name}
-                        </option>
-                      ))}
+                      <optgroup label="Raw Materials">
+                        {products.filter(p => p.is_raw_material).map(material => (
+                          <option key={material.id} value={material.id}>
+                            {material.name} (Stock: {material.current_stock})
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Finished Goods">
+                        {products.filter(p => p.is_finished_good && !p.is_raw_material).map(product => (
+                          <option key={product.id} value={product.id}>
+                            {product.name} (Stock: {product.current_stock})
+                          </option>
+                        ))}
+                      </optgroup>
                     </select>
                   </div>
                   <div className="col-span-3">
