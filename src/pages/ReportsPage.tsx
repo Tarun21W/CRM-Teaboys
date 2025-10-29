@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { Download, Calendar, TrendingUp, Package, DollarSign, Users } from 'lucide-react'
+import { Download, Calendar, TrendingUp, Package, DollarSign, Users, BarChart3 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
 interface SalesReport {
   date: string
@@ -40,7 +41,7 @@ interface DailyProfitLoss {
 }
 
 export default function ReportsPage() {
-  const [activeReport, setActiveReport] = useState<'sales' | 'products' | 'stock' | 'profit'>('sales')
+  const [activeReport, setActiveReport] = useState<'sales' | 'products' | 'stock' | 'profit' | 'trends'>('sales')
   const [dateRange, setDateRange] = useState({
     from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     to: new Date().toISOString().split('T')[0]
@@ -252,6 +253,7 @@ export default function ReportsPage() {
     { id: 'products', name: 'Product Analysis', icon: Package },
     { id: 'stock', name: 'Stock Report', icon: Package },
     { id: 'profit', name: 'Profit & Loss', icon: DollarSign },
+    { id: 'trends', name: 'Trends & Charts', icon: BarChart3 },
   ]
 
   return (
@@ -588,6 +590,112 @@ export default function ReportsPage() {
                     </tfoot>
                   )}
                 </table>
+              </div>
+            </div>
+          )}
+
+          {activeReport === 'trends' && (
+            <div className="space-y-8">
+              <h3 className="text-lg font-semibold mb-4">Trends & Analytics</h3>
+              
+              {/* Product Performance Chart */}
+              <div className="bg-white p-6 rounded-lg shadow-sm">
+                <h4 className="font-semibold mb-4">Top & Bottom Products by Revenue</h4>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={productData.slice(0, 10)}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="product_name" angle={-45} textAnchor="end" height={100} />
+                    <YAxis />
+                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                    <Legend />
+                    <Bar dataKey="revenue" fill="#10b981" name="Revenue" />
+                    <Bar dataKey="profit" fill="#8b5cf6" name="Profit" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Daily Revenue Trend */}
+              <div className="bg-white p-6 rounded-lg shadow-sm">
+                <h4 className="font-semibold mb-4">Daily Revenue & Profit Trend</h4>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={profitLossData.slice().reverse()}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
+                    <YAxis />
+                    <Tooltip 
+                      formatter={(value) => formatCurrency(Number(value))}
+                      labelFormatter={(date) => formatDate(date)}
+                    />
+                    <Legend />
+                    <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} name="Revenue" />
+                    <Line type="monotone" dataKey="net_profit" stroke="#8b5cf6" strokeWidth={2} name="Net Profit" />
+                    <Line type="monotone" dataKey="cogs" stroke="#f59e0b" strokeWidth={2} name="COGS" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Product Sales Distribution */}
+              <div className="bg-white p-6 rounded-lg shadow-sm">
+                <h4 className="font-semibold mb-4">Product Sales Distribution (Top 5)</h4>
+                <div className="grid grid-cols-2 gap-6">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={productData.slice(0, 5)}
+                        dataKey="revenue"
+                        nameKey="product_name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        label={(entry) => entry.product_name}
+                      >
+                        {productData.slice(0, 5).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444'][index % 5]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="space-y-2">
+                    <h5 className="font-medium text-sm text-gray-600 mb-3">Top 5 Products</h5>
+                    {productData.slice(0, 5).map((product, idx) => (
+                      <div key={idx} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444'][idx % 5] }}></div>
+                          <span className="text-sm font-medium">{product.product_name}</span>
+                        </div>
+                        <span className="text-sm font-bold text-green-600">{formatCurrency(product.revenue)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Key Metrics Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-lg">
+                  <h5 className="text-sm font-medium text-green-800 mb-2">Best Seller</h5>
+                  <p className="text-2xl font-bold text-green-900">{productData[0]?.product_name || 'N/A'}</p>
+                  <p className="text-sm text-green-700 mt-1">{formatCurrency(productData[0]?.revenue || 0)} revenue</p>
+                </div>
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-lg">
+                  <h5 className="text-sm font-medium text-purple-800 mb-2">Most Profitable</h5>
+                  <p className="text-2xl font-bold text-purple-900">
+                    {[...productData].sort((a, b) => b.profit - a.profit)[0]?.product_name || 'N/A'}
+                  </p>
+                  <p className="text-sm text-purple-700 mt-1">
+                    {formatCurrency([...productData].sort((a, b) => b.profit - a.profit)[0]?.profit || 0)} profit
+                  </p>
+                </div>
+                <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-lg">
+                  <h5 className="text-sm font-medium text-orange-800 mb-2">Least Sold</h5>
+                  <p className="text-2xl font-bold text-orange-900">
+                    {productData[productData.length - 1]?.product_name || 'N/A'}
+                  </p>
+                  <p className="text-sm text-orange-700 mt-1">
+                    {formatCurrency(productData[productData.length - 1]?.revenue || 0)} revenue
+                  </p>
+                </div>
               </div>
             </div>
           )}
