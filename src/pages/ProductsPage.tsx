@@ -51,6 +51,7 @@ export default function ProductsPage() {
     reorder_level: '',
     purchase_date: '',
     expiration_date: '',
+    shelf_life_days: '',
     is_raw_material: false,
     is_finished_good: true,
   })
@@ -96,6 +97,7 @@ export default function ProductsPage() {
       current_stock: parseFloat(formData.current_stock),
       weighted_avg_cost: parseFloat(formData.weighted_avg_cost || '0'),
       reorder_level: parseFloat(formData.reorder_level || '0'),
+      shelf_life_days: formData.shelf_life_days ? parseInt(formData.shelf_life_days) : null,
       category_id: formData.category_id || null,
       purchase_date: formData.purchase_date || null,
       expiration_date: formData.expiration_date || null,
@@ -127,8 +129,16 @@ export default function ProductsPage() {
     }
   }
 
-  const handleEdit = (product: Product) => {
+  const handleEdit = async (product: Product) => {
     setEditingProduct(product)
+    
+    // Fetch full product data including shelf_life_days
+    const { data } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', product.id)
+      .single()
+    
     setFormData({
       name: product.name,
       category_id: product.category_id || '',
@@ -139,6 +149,9 @@ export default function ProductsPage() {
       current_stock: product.current_stock.toString(),
       weighted_avg_cost: product.weighted_avg_cost.toString(),
       reorder_level: product.reorder_level.toString(),
+      shelf_life_days: data?.shelf_life_days?.toString() || '',
+      purchase_date: data?.purchase_date || '',
+      expiration_date: data?.expiration_date || '',
       is_raw_material: product.is_raw_material,
       is_finished_good: product.is_finished_good,
     })
@@ -175,6 +188,7 @@ export default function ProductsPage() {
       reorder_level: '',
       purchase_date: '',
       expiration_date: '',
+      shelf_life_days: '',
       is_raw_material: false,
       is_finished_good: true,
     })
@@ -427,6 +441,23 @@ export default function ProductsPage() {
               onChange={(e) => setFormData({ ...formData, reorder_level: e.target.value })}
             />
           </div>
+
+          {formData.is_finished_good && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <label className="block text-sm font-medium text-blue-900 mb-2">
+                ⏱️ Shelf Life (Days)
+              </label>
+              <Input
+                type="number"
+                value={formData.shelf_life_days}
+                onChange={(e) => setFormData({ ...formData, shelf_life_days: e.target.value })}
+                placeholder="e.g., 1 for tea, 7 for snacks"
+              />
+              <p className="text-xs text-blue-700 mt-2">
+                How many days this product stays fresh after production. Used to automatically calculate expiration dates.
+              </p>
+            </div>
+          )}
 
           {formData.is_raw_material && (
             <div className="grid grid-cols-2 gap-4">
