@@ -3,7 +3,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { 
   LayoutDashboard, ShoppingCart, Package, ShoppingBag, 
   Factory, BarChart3, LogOut, Menu, X, Users, Coffee, 
-  User, Settings, HelpCircle, ChevronDown 
+  User, Settings, HelpCircle, ChevronDown, Clock 
 } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 
@@ -32,6 +32,7 @@ export default function Layout() {
     { name: 'Products', href: '/products', icon: Package, roles: ['admin', 'manager'] },
     { name: 'Purchases', href: '/purchases', icon: ShoppingBag, roles: ['admin', 'manager'] },
     { name: 'Production', href: '/production', icon: Factory, roles: ['admin', 'manager', 'baker'] },
+    { name: 'Expiration', href: '/expiration', icon: Clock, roles: ['admin', 'manager', 'baker'] },
     { name: 'Reports', href: '/reports', icon: BarChart3, roles: ['admin', 'manager'] },
     { name: 'Users', href: '/users', icon: Users, roles: ['admin'] },
   ]
