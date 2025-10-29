@@ -40,8 +40,38 @@ interface DailyProfitLoss {
   wastage_count: number
 }
 
+interface SalesTrend {
+  date: string
+  revenue: number
+  moving_avg_7day: number
+  moving_avg_14day: number
+  growth_rate_percent: number
+  wow_growth_percent: number
+  trend_direction: 'up' | 'down' | 'stable'
+}
+
+interface ReorderRecommendation {
+  product_id: string
+  product_name: string
+  current_stock: number
+  unit: string
+  avg_daily_demand: number
+  days_until_stockout: number
+  recommended_order_qty: number
+  demand_trend: 'increasing' | 'decreasing' | 'stable'
+  priority: 'urgent' | 'high' | 'medium' | 'low'
+}
+
+interface DayPattern {
+  day_name: string
+  day_number: number
+  avg_daily_revenue: number
+  total_orders: number
+  avg_order_value: number
+}
+
 export default function ReportsPage() {
-  const [activeReport, setActiveReport] = useState<'sales' | 'products' | 'stock' | 'profit' | 'trends'>('sales')
+  const [activeReport, setActiveReport] = useState<'sales' | 'products' | 'stock' | 'profit' | 'trends' | 'predictions'>('sales')
   const [dateRange, setDateRange] = useState({
     from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     to: new Date().toISOString().split('T')[0]
@@ -50,6 +80,9 @@ export default function ReportsPage() {
   const [productData, setProductData] = useState<ProductReport[]>([])
   const [stockData, setStockData] = useState<StockReport[]>([])
   const [profitLossData, setProfitLossData] = useState<DailyProfitLoss[]>([])
+  const [salesTrendData, setSalesTrendData] = useState<SalesTrend[]>([])
+  const [reorderData, setReorderData] = useState<ReorderRecommendation[]>([])
+  const [dayPatternData, setDayPatternData] = useState<DayPattern[]>([])
   const [loading, setLoading] = useState(false)
 
   const [summary, setSummary] = useState({
@@ -72,6 +105,7 @@ export default function ReportsPage() {
       fetchProductReport(),
       fetchStockReport(),
       fetchProfitLossReport(),
+      fetchPredictiveData(),
       fetchSummary()
     ])
     setLoading(false)
@@ -186,6 +220,66 @@ export default function ReportsPage() {
     }
   }
 
+  const fetchPredictiveData = async () => {
+    // Fetch sales trend analysis
+    const { data: trendData } = await supabase
+      .from('sales_trend_analysis')
+      .select('*')
+      .gte('date', dateRange.from)
+      .lte('date', dateRange.to)
+      .order('date', { ascending: false })
+      .limit(30)
+
+    if (trendData) {
+      setSalesTrendData(trendData.map(row => ({
+        date: row.date,
+        revenue: Number(row.revenue || 0),
+        moving_avg_7day: Number(row.moving_avg_7day || 0),
+        moving_avg_14day: Number(row.moving_avg_14day || 0),
+        growth_rate_percent: Number(row.growth_rate_percent || 0),
+        wow_growth_percent: Number(row.wow_growth_percent || 0),
+        trend_direction: row.trend_direction || 'stable'
+      })))
+    }
+
+    // Fetch reorder recommendations
+    const { data: reorderData } = await supabase
+      .from('reorder_recommendations')
+      .select('*')
+      .order('priority', { ascending: true })
+      .limit(20)
+
+    if (reorderData) {
+      setReorderData(reorderData.map(row => ({
+        product_id: row.product_id,
+        product_name: row.product_name,
+        current_stock: Number(row.current_stock || 0),
+        unit: row.unit,
+        avg_daily_demand: Number(row.avg_daily_demand || 0),
+        days_until_stockout: Number(row.days_until_stockout || 999),
+        recommended_order_qty: Number(row.recommended_order_qty || 0),
+        demand_trend: row.demand_trend || 'stable',
+        priority: row.priority || 'low'
+      })))
+    }
+
+    // Fetch day of week patterns
+    const { data: dayData } = await supabase
+      .from('day_of_week_pattern')
+      .select('*')
+      .order('day_number', { ascending: true })
+
+    if (dayData) {
+      setDayPatternData(dayData.map(row => ({
+        day_name: row.day_name?.trim() || '',
+        day_number: Number(row.day_number || 0),
+        avg_daily_revenue: Number(row.avg_daily_revenue || 0),
+        total_orders: Number(row.total_orders || 0),
+        avg_order_value: Number(row.avg_order_value || 0)
+      })))
+    }
+  }
+
   const fetchSummary = async () => {
     // Total sales and orders
     const { data: sales } = await supabase
@@ -254,6 +348,7 @@ export default function ReportsPage() {
     { id: 'stock', name: 'Stock Report', icon: Package },
     { id: 'profit', name: 'Profit & Loss', icon: DollarSign },
     { id: 'trends', name: 'Trends & Charts', icon: BarChart3 },
+    { id: 'predictions', name: 'Predictions & AI', icon: TrendingUp },
   ]
 
   return (
@@ -695,6 +790,163 @@ export default function ReportsPage() {
                   <p className="text-sm text-orange-700 mt-1">
                     {formatCurrency(productData[productData.length - 1]?.revenue || 0)} revenue
                   </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeReport === 'predictions' && (
+            <div className="space-y-8">
+              <h3 className="text-lg font-semibold mb-4">Predictive Analytics & AI Insights</h3>
+              
+              {/* Sales Trend with Moving Averages */}
+              <div className="bg-white p-6 rounded-lg shadow-sm">
+                <h4 className="font-semibold mb-4">Sales Trend with Moving Averages</h4>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={salesTrendData.slice().reverse()}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
+                    <YAxis />
+                    <Tooltip 
+                      formatter={(value) => formatCurrency(Number(value))}
+                      labelFormatter={(date) => formatDate(date)}
+                    />
+                    <Legend />
+                    <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} name="Actual Revenue" />
+                    <Line type="monotone" dataKey="moving_avg_7day" stroke="#3b82f6" strokeWidth={2} strokeDasharray="5 5" name="7-Day Average" />
+                    <Line type="monotone" dataKey="moving_avg_14day" stroke="#8b5cf6" strokeWidth={2} strokeDasharray="10 5" name="14-Day Average" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Growth Rate Analysis */}
+              <div className="bg-white p-6 rounded-lg shadow-sm">
+                <h4 className="font-semibold mb-4">Growth Rate Analysis</h4>
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={salesTrendData.slice(0, 14).reverse()}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
+                    <YAxis />
+                    <Tooltip 
+                      formatter={(value) => `${Number(value).toFixed(1)}%`}
+                      labelFormatter={(date) => formatDate(date)}
+                    />
+                    <Legend />
+                    <Bar dataKey="growth_rate_percent" fill="#10b981" name="Daily Growth %" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Day of Week Performance */}
+              <div className="bg-white p-6 rounded-lg shadow-sm">
+                <h4 className="font-semibold mb-4">Best Performing Days</h4>
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={dayPatternData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="day_name" />
+                    <YAxis />
+                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                    <Legend />
+                    <Bar dataKey="avg_daily_revenue" fill="#10b981" name="Avg Daily Revenue" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Reorder Recommendations */}
+              <div className="bg-white p-6 rounded-lg shadow-sm">
+                <h4 className="font-semibold mb-4">Smart Reorder Recommendations</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Current Stock</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Daily Demand</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Days Left</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Recommended Order</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trend</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Priority</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {reorderData.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                            No reorder recommendations available
+                          </td>
+                        </tr>
+                      ) : (
+                        reorderData.slice(0, 10).map((item, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 font-medium">{item.product_name}</td>
+                            <td className="px-4 py-3">{item.current_stock.toFixed(1)} {item.unit}</td>
+                            <td className="px-4 py-3">{item.avg_daily_demand.toFixed(1)} {item.unit}/day</td>
+                            <td className="px-4 py-3">
+                              <span className={`font-semibold ${
+                                item.days_until_stockout <= 3 ? 'text-red-600' :
+                                item.days_until_stockout <= 7 ? 'text-yellow-600' : 'text-green-600'
+                              }`}>
+                                {item.days_until_stockout > 999 ? '∞' : Math.floor(item.days_until_stockout)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 font-bold text-blue-600">
+                              {item.recommended_order_qty.toFixed(1)} {item.unit}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                item.demand_trend === 'increasing' ? 'bg-green-100 text-green-800' :
+                                item.demand_trend === 'decreasing' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {item.demand_trend}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                item.priority === 'urgent' ? 'bg-red-100 text-red-800' :
+                                item.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                                item.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-green-100 text-green-800'
+                              }`}>
+                                {item.priority}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Key Insights Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-lg">
+                  <h5 className="text-sm font-medium text-blue-800 mb-2">Revenue Trend</h5>
+                  <p className="text-2xl font-bold text-blue-900">
+                    {salesTrendData[0]?.trend_direction === 'up' ? '📈 Growing' :
+                     salesTrendData[0]?.trend_direction === 'down' ? '📉 Declining' : '➡️ Stable'}
+                  </p>
+                  <p className="text-sm text-blue-700 mt-1">
+                    {salesTrendData[0]?.growth_rate_percent ? 
+                      `${salesTrendData[0].growth_rate_percent.toFixed(1)}% vs yesterday` : 'No data'}
+                  </p>
+                </div>
+                <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-lg">
+                  <h5 className="text-sm font-medium text-green-800 mb-2">Best Day</h5>
+                  <p className="text-2xl font-bold text-green-900">
+                    {dayPatternData.sort((a, b) => b.avg_daily_revenue - a.avg_daily_revenue)[0]?.day_name?.trim() || 'N/A'}
+                  </p>
+                  <p className="text-sm text-green-700 mt-1">
+                    {formatCurrency(dayPatternData.sort((a, b) => b.avg_daily_revenue - a.avg_daily_revenue)[0]?.avg_daily_revenue || 0)} avg
+                  </p>
+                </div>
+                <div className="bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-lg">
+                  <h5 className="text-sm font-medium text-red-800 mb-2">Urgent Reorders</h5>
+                  <p className="text-2xl font-bold text-red-900">
+                    {reorderData.filter(item => item.priority === 'urgent' || item.priority === 'high').length}
+                  </p>
+                  <p className="text-sm text-red-700 mt-1">Items need restocking</p>
                 </div>
               </div>
             </div>
