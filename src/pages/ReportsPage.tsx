@@ -28,6 +28,17 @@ interface StockReport {
   status: 'ok' | 'low' | 'out'
 }
 
+interface DailyProfitLoss {
+  date: string
+  revenue: number
+  cogs: number
+  gross_profit: number
+  wastage_cost: number
+  net_profit: number
+  total_orders: number
+  wastage_count: number
+}
+
 export default function ReportsPage() {
   const [activeReport, setActiveReport] = useState<'sales' | 'products' | 'stock' | 'profit'>('sales')
   const [dateRange, setDateRange] = useState({
@@ -37,6 +48,7 @@ export default function ReportsPage() {
   const [salesData, setSalesData] = useState<SalesReport[]>([])
   const [productData, setProductData] = useState<ProductReport[]>([])
   const [stockData, setStockData] = useState<StockReport[]>([])
+  const [profitLossData, setProfitLossData] = useState<DailyProfitLoss[]>([])
   const [loading, setLoading] = useState(false)
 
   const [summary, setSummary] = useState({
@@ -58,6 +70,7 @@ export default function ReportsPage() {
       fetchSalesReport(),
       fetchProductReport(),
       fetchStockReport(),
+      fetchProfitLossReport(),
       fetchSummary()
     ])
     setLoading(false)
@@ -147,6 +160,28 @@ export default function ReportsPage() {
       }))
 
       setStockData(stockReport)
+    }
+  }
+
+  const fetchProfitLossReport = async () => {
+    const { data } = await supabase
+      .from('daily_net_profit')
+      .select('*')
+      .gte('date', dateRange.from)
+      .lte('date', dateRange.to)
+      .order('date', { ascending: false })
+
+    if (data) {
+      setProfitLossData(data.map(row => ({
+        date: row.date,
+        revenue: Number(row.revenue || 0),
+        cogs: Number(row.cogs || 0),
+        gross_profit: Number(row.gross_profit || 0),
+        wastage_cost: Number(row.wastage_cost || 0),
+        net_profit: Number(row.net_profit || 0),
+        total_orders: Number(row.total_orders || 0),
+        wastage_count: Number(row.wastage_count || 0)
+      })))
     }
   }
 
@@ -474,38 +509,85 @@ export default function ReportsPage() {
 
           {activeReport === 'profit' && (
             <div>
-              <h3 className="text-lg font-semibold mb-4">Profit & Loss Statement</h3>
-              <div className="bg-gray-50 p-6 rounded-lg">
-                <div className="grid grid-cols-2 gap-8">
-                  <div>
-                    <h4 className="font-semibold text-green-600 mb-3">Revenue</h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span>Total Sales</span>
-                        <span className="font-bold">{formatCurrency(summary.totalSales)}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-red-600 mb-3">Costs</h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span>Cost of Goods Sold</span>
-                        <span className="font-bold">{formatCurrency(summary.totalSales - summary.totalProfit)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="border-t mt-6 pt-4">
-                  <div className="flex justify-between text-xl font-bold">
-                    <span>Net Profit</span>
-                    <span className="text-green-600">{formatCurrency(summary.totalProfit)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm text-gray-500 mt-2">
-                    <span>Profit Margin</span>
-                    <span>{summary.totalSales > 0 ? ((summary.totalProfit / summary.totalSales) * 100).toFixed(2) : 0}%</span>
-                  </div>
-                </div>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Daily Profit & Loss</h3>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => exportToCSV(profitLossData, 'profit_loss_report')}
+                  disabled={profitLossData.length === 0}
+                >
+                  <Download size={16} className="mr-2" />
+                  Export CSV
+                </Button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Orders</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Revenue</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">COGS</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gross Profit</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Wastage</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Net Profit</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Margin %</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {profitLossData.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                          No profit & loss data for selected period
+                        </td>
+                      </tr>
+                    ) : (
+                      profitLossData.map((row, idx) => {
+                        const margin = row.revenue > 0 ? ((row.net_profit / row.revenue) * 100) : 0
+                        return (
+                          <tr key={idx} className="hover:bg-gray-50">
+                            <td className="px-4 py-3">{formatDate(row.date)}</td>
+                            <td className="px-4 py-3">{row.total_orders}</td>
+                            <td className="px-4 py-3 font-bold text-green-600">{formatCurrency(row.revenue)}</td>
+                            <td className="px-4 py-3 text-orange-600">{formatCurrency(row.cogs)}</td>
+                            <td className="px-4 py-3 font-bold text-blue-600">{formatCurrency(row.gross_profit)}</td>
+                            <td className="px-4 py-3 text-red-600">{formatCurrency(row.wastage_cost)}</td>
+                            <td className="px-4 py-3 font-bold text-purple-600">{formatCurrency(row.net_profit)}</td>
+                            <td className="px-4 py-3">
+                              <span className={`font-semibold ${margin >= 30 ? 'text-green-600' : margin >= 15 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                {margin.toFixed(1)}%
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })
+                    )}
+                  </tbody>
+                  {profitLossData.length > 0 && (
+                    <tfoot className="bg-gray-100 font-bold">
+                      <tr>
+                        <td className="px-4 py-3">TOTAL</td>
+                        <td className="px-4 py-3">{profitLossData.reduce((sum, row) => sum + row.total_orders, 0)}</td>
+                        <td className="px-4 py-3 text-green-600">{formatCurrency(profitLossData.reduce((sum, row) => sum + row.revenue, 0))}</td>
+                        <td className="px-4 py-3 text-orange-600">{formatCurrency(profitLossData.reduce((sum, row) => sum + row.cogs, 0))}</td>
+                        <td className="px-4 py-3 text-blue-600">{formatCurrency(profitLossData.reduce((sum, row) => sum + row.gross_profit, 0))}</td>
+                        <td className="px-4 py-3 text-red-600">{formatCurrency(profitLossData.reduce((sum, row) => sum + row.wastage_cost, 0))}</td>
+                        <td className="px-4 py-3 text-purple-600">{formatCurrency(profitLossData.reduce((sum, row) => sum + row.net_profit, 0))}</td>
+                        <td className="px-4 py-3">
+                          {(() => {
+                            const totalRevenue = profitLossData.reduce((sum, row) => sum + row.revenue, 0)
+                            const totalNetProfit = profitLossData.reduce((sum, row) => sum + row.net_profit, 0)
+                            const avgMargin = totalRevenue > 0 ? ((totalNetProfit / totalRevenue) * 100) : 0
+                            return <span className={`${avgMargin >= 30 ? 'text-green-600' : avgMargin >= 15 ? 'text-yellow-600' : 'text-red-600'}`}>
+                              {avgMargin.toFixed(1)}%
+                            </span>
+                          })()}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
               </div>
             </div>
           )}
