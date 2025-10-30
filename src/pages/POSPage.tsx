@@ -140,15 +140,21 @@ export default function POSPage() {
 
       if (!sale) throw new Error('Failed to create sale after retries')
 
-      // Insert sale lines
-      const saleLines = items.map(item => ({
-        sale_id: sale.id,
-        product_id: item.id,
-        quantity: item.quantity,
-        unit_price: item.selling_price,
-        discount_percent: item.discount,
-        line_total: item.selling_price * item.quantity * (1 - item.discount / 100),
-      }))
+      // Insert sale lines with cost_price for profit calculation
+      const saleLines = items.map(item => {
+        const product = products.find(p => p.id === item.id)
+        const costPrice = product?.weighted_avg_cost || 0
+        
+        return {
+          sale_id: sale.id,
+          product_id: item.id,
+          quantity: item.quantity,
+          unit_price: item.selling_price,
+          discount_percent: item.discount,
+          line_total: item.selling_price * item.quantity * (1 - item.discount / 100),
+          cost_price: costPrice, // Unit cost price for profit calculation
+        }
+      })
 
       const { error: linesError } = await supabase
         .from('sales_lines')
