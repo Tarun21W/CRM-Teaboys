@@ -206,7 +206,7 @@ export default function ExpirationTrackingPage() {
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-500 text-sm">Good (>7 days)</p>
+              <p className="text-gray-500 text-sm">Good (&gt;7 days)</p>
               <p className="text-2xl font-bold text-green-600">{stats.good}</p>
             </div>
             <CheckCircle className="text-green-500" size={32} />
