@@ -3,12 +3,20 @@ import { useStoreStore } from '@/stores/storeStore'
 import { Store } from 'lucide-react'
 
 export default function StoreSelector() {
-  const { stores, currentStore, canAccessAllStores, setCurrentStore, fetchStores, fetchUserStoreAccess } = useStoreStore()
+  const { stores, currentStore, canAccessAllStores, loading, setCurrentStore, fetchStores, fetchUserStoreAccess } = useStoreStore()
 
   useEffect(() => {
-    fetchStores()
-    fetchUserStoreAccess()
-  }, [])
+    const loadStores = async () => {
+      await fetchStores()
+      await fetchUserStoreAccess()
+    }
+    loadStores()
+  }, [fetchStores, fetchUserStoreAccess])
+
+  // If loading or no stores, don't show
+  if (loading || stores.length === 0) {
+    return null
+  }
 
   // If user can only access one store, don't show selector
   if (!canAccessAllStores && stores.length <= 1) {
