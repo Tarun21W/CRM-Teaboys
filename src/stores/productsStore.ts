@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
+import { useStoreStore } from '@/stores/storeStore'
 
 interface Product {
   id: string
@@ -37,14 +38,50 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
   fetchProducts: async () => {
     set({ loading: true, error: null })
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*, categories(name)')
-        .eq('is_active', true)
-        .order('name')
+      // Get current store from storeStore
+      const currentStore = useStoreStore.getState().currentStore
+      
+      if (!currentStore) {
+        // If no store selected, fetch from user's default store
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          set({ products: [], loading: false })
+          return
+        }
 
-      if (error) throw error
-      set({ products: data || [], loading: false })
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('store_id')
+          .eq('id', user.id)
+          .single()
+
+        if (!profile || !(profile as any).store_id) {
+          set({ products: [], loading: false, error: 'No store assigned' })
+          return
+        }
+
+        // Fetch products for user's store
+        const { data, error } = await supabase
+          .from('products')
+          .select('*, categories(name)')
+          .eq('is_active', true)
+          .eq('store_id', (profile as any).store_id)
+          .order('name')
+
+        if (error) throw error
+        set({ products: data || [], loading: false })
+      } else {
+        // Fetch products for current store
+        const { data, error } = await supabase
+          .from('products')
+          .select('*, categories(name)')
+          .eq('is_active', true)
+          .eq('store_id', currentStore.id)
+          .order('name')
+
+        if (error) throw error
+        set({ products: data || [], loading: false })
+      }
     } catch (error: any) {
       set({ error: error.message, loading: false })
     }

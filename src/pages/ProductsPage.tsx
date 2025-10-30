@@ -6,6 +6,7 @@ import { Plus, Edit, Trash2, Search, Filter, Download, Upload } from 'lucide-rea
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
+import { useStoreStore } from '@/stores/storeStore'
 
 interface Product {
   id: string
@@ -30,6 +31,7 @@ interface Category {
 }
 
 export default function ProductsPage() {
+  const { currentStore } = useStoreStore()
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
@@ -58,7 +60,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [currentStore])
 
   const fetchData = async () => {
     setLoading(true)
@@ -67,15 +69,49 @@ export default function ProductsPage() {
   }
 
   const fetchProducts = async () => {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*, categories(name)')
-      .order('name')
+    // Get current store
+    const currentStore = useStoreStore.getState().currentStore
+    
+    if (!currentStore) {
+      // If no store selected, get user's default store
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
 
-    if (error) {
-      toast.error('Failed to fetch products')
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('store_id')
+        .eq('id', user.id)
+        .single()
+
+      if (!profile?.store_id) {
+        toast.error('No store assigned to user')
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('products')
+        .select('*, categories(name)')
+        .eq('store_id', profile.store_id)
+        .order('name')
+
+      if (error) {
+        toast.error('Failed to fetch products')
+      } else {
+        setProducts(data || [])
+      }
     } else {
-      setProducts(data || [])
+      // Fetch products for current store
+      const { data, error } = await supabase
+        .from('products')
+        .select('*, categories(name)')
+        .eq('store_id', currentStore.id)
+        .order('name')
+
+      if (error) {
+        toast.error('Failed to fetch products')
+      } else {
+        setProducts(data || [])
+      }
     }
   }
 

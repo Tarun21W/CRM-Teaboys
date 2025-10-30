@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import { useCartStore } from '@/stores/cartStore'
 import { useProductsStore } from '@/stores/productsStore'
+import { useStoreStore } from '@/stores/storeStore'
 import { formatCurrency } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import { Search, Trash2, Plus, Minus, Percent, User, Phone, Printer, X } from 'lucide-react'
@@ -20,6 +21,7 @@ export default function POSPage() {
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   const { user } = useAuthStore()
+  const { currentStore } = useStoreStore()
   const { products, loading, fetchProducts, searchProducts } = useProductsStore()
   const {
     items,
@@ -35,7 +37,7 @@ export default function POSPage() {
 
   useEffect(() => {
     fetchProducts()
-  }, [fetchProducts])
+  }, [fetchProducts, currentStore])
 
   useEffect(() => {
     // Focus search input on mount
