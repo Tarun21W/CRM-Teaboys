@@ -1,8 +1,10 @@
 import { useEffect } from 'react'
 import { useStoreStore } from '@/stores/storeStore'
+import { useAuthStore } from '@/stores/authStore'
 import { Store } from 'lucide-react'
 
 export default function StoreSelector() {
+  const { profile } = useAuthStore()
   const { stores, currentStore, canAccessAllStores, loading, setCurrentStore, fetchStores, fetchUserStoreAccess } = useStoreStore()
 
   useEffect(() => {
@@ -15,6 +17,11 @@ export default function StoreSelector() {
 
   // If loading or no stores, don't show
   if (loading || stores.length === 0) {
+    return null
+  }
+
+  // Only admins can see and switch stores
+  if (profile?.role !== 'admin') {
     return null
   }
 
