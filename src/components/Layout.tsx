@@ -6,6 +6,7 @@ import {
   User, Settings, HelpCircle, ChevronDown, Clock 
 } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
+import StoreSelector from '@/components/StoreSelector'
 
 export default function Layout() {
   const { profile, signOut } = useAuthStore()
@@ -55,12 +56,22 @@ export default function Layout() {
             <p className="text-xs text-gray-500">☕ Management</p>
           </div>
         </div>
-        <button 
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 hover:bg-orange-50 rounded-xl transition-colors"
-        >
-          {sidebarOpen ? <X size={24} className="text-gray-700" /> : <Menu size={24} className="text-gray-700" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <StoreSelector />
+          <button 
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-2 hover:bg-orange-50 rounded-xl transition-colors"
+          >
+            {sidebarOpen ? <X size={24} className="text-gray-700" /> : <Menu size={24} className="text-gray-700" />}
+          </button>
+        </div>
+      </div>
+      
+      {/* Desktop header with store selector */}
+      <div className="hidden lg:block fixed top-0 left-64 right-0 bg-white/90 backdrop-blur-xl border-b border-gray-200 z-30 px-6 py-3">
+        <div className="flex items-center justify-end">
+          <StoreSelector />
+        </div>
       </div>
 
       {/* Sidebar */}
@@ -189,7 +200,7 @@ export default function Layout() {
       </aside>
 
       {/* Main content */}
-      <main className="lg:ml-64 pt-16 lg:pt-0 min-h-screen">
+      <main className="lg:ml-64 pt-16 lg:pt-16 min-h-screen">
         <div className="p-6">
           <Outlet />
         </div>
