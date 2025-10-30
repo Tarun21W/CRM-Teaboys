@@ -3,7 +3,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { 
   LayoutDashboard, ShoppingCart, Package, ShoppingBag, 
   Factory, BarChart3, LogOut, Menu, X, Users, Coffee, 
-  User, Settings, HelpCircle, ChevronDown, Clock 
+  User, Settings, HelpCircle, ChevronDown, Clock, Store 
 } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import StoreSelector from '@/components/StoreSelector'
@@ -29,6 +29,7 @@ export default function Layout() {
 
   const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard, roles: ['admin', 'manager', 'cashier', 'baker'] },
+    { name: 'Multi-Store', href: '/multi-store', icon: Store, roles: ['admin'], highlight: true },
     { name: 'POS', href: '/pos', icon: ShoppingCart, roles: ['admin', 'manager', 'cashier'] },
     { name: 'Products', href: '/products', icon: Package, roles: ['admin', 'manager'] },
     { name: 'Purchases', href: '/purchases', icon: ShoppingBag, roles: ['admin', 'manager'] },
@@ -169,19 +170,27 @@ export default function Layout() {
           {filteredNav.map((item) => {
             const Icon = item.icon
             const isActive = location.pathname === item.href
+            const isHighlight = (item as any).highlight
             return (
               <Link
                 key={item.name}
                 to={item.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative ${
                   isActive 
-                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/30' 
-                    : 'text-gray-700 hover:bg-gray-100'
+                    ? isHighlight
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-blue-500/30'
+                      : 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/30'
+                    : isHighlight
+                      ? 'bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 hover:from-blue-100 hover:to-purple-100 border-2 border-blue-200'
+                      : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
                 <Icon size={20} className={isActive ? '' : 'group-hover:scale-110 transition-transform'} />
                 <span className="font-medium">{item.name}</span>
+                {isHighlight && !isActive && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full animate-pulse"></span>
+                )}
               </Link>
             )
           })}

@@ -12,6 +12,7 @@ import ProductionPage from '@/pages/ProductionPage'
 import ReportsPage from '@/pages/ReportsPage'
 import UsersPage from '@/pages/UsersPage'
 import ExpirationTrackingPage from '@/pages/ExpirationTrackingPage'
+import MultiStoreAnalyticsPage from '@/pages/MultiStoreAnalyticsPage'
 import Layout from '@/components/Layout'
 
 function App() {
@@ -51,6 +52,7 @@ function App() {
           <Route path="purchases" element={<PurchasesPage />} />
           <Route path="production" element={<ProductionPage />} />
           <Route path="expiration" element={<ExpirationTrackingPage />} />
+          <Route path="multi-store" element={<MultiStoreAnalyticsPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="users" element={<UsersPage />} />
         </Route>
