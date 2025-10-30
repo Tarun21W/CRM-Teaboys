@@ -56,7 +56,7 @@ export default function MultiStoreAnalyticsPage() {
 
     const metrics: StoreMetrics[] = []
 
-    for (const store of stores) {
+    for (const store of (stores as any[])) {
       // Get sales data
       const { data: sales } = await supabase
         .from('sales')
@@ -65,7 +65,7 @@ export default function MultiStoreAnalyticsPage() {
         .gte('sale_date', dateRange.from)
         .lte('sale_date', dateRange.to + 'T23:59:59')
 
-      const totalSales = sales?.reduce((sum, s) => sum + Number(s.total_amount), 0) || 0
+      const totalSales = sales?.reduce((sum, s: any) => sum + Number(s.total_amount), 0) || 0
       const totalOrders = sales?.length || 0
 
       // Get profit data
@@ -76,7 +76,7 @@ export default function MultiStoreAnalyticsPage() {
         .gte('sales.sale_date', dateRange.from)
         .lte('sales.sale_date', dateRange.to + 'T23:59:59')
 
-      const totalProfit = salesLines?.reduce((sum, line) => {
+      const totalProfit = salesLines?.reduce((sum, line: any) => {
         const revenue = Number(line.line_total)
         const cost = Number(line.cost_price || 0) * Number(line.quantity)
         return sum + (revenue - cost)
@@ -90,7 +90,7 @@ export default function MultiStoreAnalyticsPage() {
         .eq('is_active', true)
 
       const totalProducts = products?.length || 0
-      const lowStockItems = products?.filter(p => p.current_stock <= p.reorder_level).length || 0
+      const lowStockItems = products?.filter((p: any) => p.current_stock <= p.reorder_level).length || 0
 
       metrics.push({
         store_id: store.id,
@@ -118,7 +118,7 @@ export default function MultiStoreAnalyticsPage() {
     // Get daily sales for each store
     const dailySales: { [date: string]: any } = {}
 
-    for (const store of stores) {
+    for (const store of (stores as any[])) {
       const { data: sales } = await supabase
         .from('sales')
         .select('sale_date, total_amount')
@@ -127,7 +127,7 @@ export default function MultiStoreAnalyticsPage() {
         .lte('sale_date', dateRange.to + 'T23:59:59')
         .order('sale_date')
 
-      sales?.forEach(sale => {
+      sales?.forEach((sale: any) => {
         const date = sale.sale_date.split('T')[0]
         if (!dailySales[date]) {
           dailySales[date] = { date }
@@ -136,7 +136,7 @@ export default function MultiStoreAnalyticsPage() {
       })
     }
 
-    const trendData = Object.values(dailySales).sort((a: any, b: any) => 
+    const trendData = Object.values(dailySales).sort((a: any, b: any) =>
       new Date(a.date).getTime() - new Date(b.date).getTime()
     )
 
@@ -238,19 +238,19 @@ export default function MultiStoreAnalyticsPage() {
         <ResponsiveContainer width="100%" height={400}>
           <LineChart data={salesTrend}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis 
-              dataKey="date" 
-              tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} 
+            <XAxis
+              dataKey="date"
+              tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             />
             <YAxis tickFormatter={(value) => `₹${value}`} />
             <Tooltip formatter={(value) => formatCurrency(Number(value))} />
             <Legend />
             {storeMetrics.map((store, index) => (
-              <Line 
+              <Line
                 key={store.store_id}
-                type="monotone" 
-                dataKey={store.store_name} 
-                stroke={COLORS[index % COLORS.length]} 
+                type="monotone"
+                dataKey={store.store_name}
+                stroke={COLORS[index % COLORS.length]}
                 strokeWidth={2}
               />
             ))}
@@ -308,13 +308,25 @@ export default function MultiStoreAnalyticsPage() {
                   cx="50%"
                   cy="50%"
                   outerRadius={100}
-                  label={(entry) => `${entry.store_name}: ${((entry.total_sales / totalMetrics.totalSales) * 100).toFixed(1)}%`}
+                  label={false}
+                  labelLine={false}
                 >
                   {storeMetrics.filter(m => m.total_sales > 0).map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                <Tooltip 
+                  formatter={(value, name, props) => [
+                    formatCurrency(Number(value)),
+                    `${props.payload.store_name} (${((props.payload.total_sales / totalMetrics.totalSales) * 100).toFixed(1)}%)`
+                  ]}
+                />
+                <Legend 
+                  formatter={(value, entry: any) => {
+                    const percentage = ((entry.payload.total_sales / totalMetrics.totalSales) * 100).toFixed(1)
+                    return `${value}: ${percentage}%`
+                  }}
+                />
               </PieChart>
             </ResponsiveContainer>
 
@@ -322,8 +334,8 @@ export default function MultiStoreAnalyticsPage() {
               {storeMetrics.map((store, index) => (
                 <div key={store.store_id} className="border rounded-lg p-4">
                   <div className="flex items-center gap-3 mb-2">
-                    <div 
-                      className="w-4 h-4 rounded-full" 
+                    <div
+                      className="w-4 h-4 rounded-full"
                       style={{ backgroundColor: COLORS[index % COLORS.length] }}
                     />
                     <h4 className="font-semibold">{store.store_name}</h4>
@@ -389,20 +401,18 @@ export default function MultiStoreAnalyticsPage() {
                       <td className="px-4 py-3">{formatCurrency(store.avg_order_value)}</td>
                       <td className="px-4 py-3 font-bold text-purple-600">{formatCurrency(store.total_profit)}</td>
                       <td className="px-4 py-3">
-                        <span className={`font-semibold ${
-                          margin >= 30 ? 'text-green-600' : 
-                          margin >= 15 ? 'text-yellow-600' : 'text-red-600'
-                        }`}>
+                        <span className={`font-semibold ${margin >= 30 ? 'text-green-600' :
+                            margin >= 15 ? 'text-yellow-600' : 'text-red-600'
+                          }`}>
                           {margin.toFixed(1)}%
                         </span>
                       </td>
                       <td className="px-4 py-3">{store.total_products}</td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          store.low_stock_items > 5 ? 'bg-red-100 text-red-800' :
-                          store.low_stock_items > 0 ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-green-100 text-green-800'
-                        }`}>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${store.low_stock_items > 5 ? 'bg-red-100 text-red-800' :
+                            store.low_stock_items > 0 ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-green-100 text-green-800'
+                          }`}>
                           {store.low_stock_items}
                         </span>
                       </td>
