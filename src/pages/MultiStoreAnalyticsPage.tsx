@@ -315,13 +315,13 @@ export default function MultiStoreAnalyticsPage() {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip 
+                <Tooltip
                   formatter={(value, name, props) => [
                     formatCurrency(Number(value)),
                     `${props.payload.store_name} (${((props.payload.total_sales / totalMetrics.totalSales) * 100).toFixed(1)}%)`
                   ]}
                 />
-                <Legend 
+                <Legend
                   formatter={(value, entry: any) => {
                     const percentage = ((entry.payload.total_sales / totalMetrics.totalSales) * 100).toFixed(1)
                     return `${value}: ${percentage}%`
@@ -402,7 +402,7 @@ export default function MultiStoreAnalyticsPage() {
                       <td className="px-4 py-3 font-bold text-purple-600">{formatCurrency(store.total_profit)}</td>
                       <td className="px-4 py-3">
                         <span className={`font-semibold ${margin >= 30 ? 'text-green-600' :
-                            margin >= 15 ? 'text-yellow-600' : 'text-red-600'
+                          margin >= 15 ? 'text-yellow-600' : 'text-red-600'
                           }`}>
                           {margin.toFixed(1)}%
                         </span>
@@ -410,8 +410,8 @@ export default function MultiStoreAnalyticsPage() {
                       <td className="px-4 py-3">{store.total_products}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${store.low_stock_items > 5 ? 'bg-red-100 text-red-800' :
-                            store.low_stock_items > 0 ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-green-100 text-green-800'
+                          store.low_stock_items > 0 ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-green-100 text-green-800'
                           }`}>
                           {store.low_stock_items}
                         </span>
