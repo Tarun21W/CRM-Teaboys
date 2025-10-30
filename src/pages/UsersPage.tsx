@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import toast from 'react-hot-toast'
-import { Plus, Edit, Trash2, UserCheck, UserX, Shield } from 'lucide-react'
+import { Plus, Edit, Trash2, UserCheck, UserX, Shield, Store } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
@@ -16,11 +16,27 @@ interface User {
   email?: string
 }
 
+interface StoreType {
+  id: string
+  name: string
+  code: string
+}
+
+interface UserStore {
+  id: string
+  store_id: string
+  is_default: boolean
+}
+
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [showStoreModal, setShowStoreModal] = useState(false)
+  const [managingUser, setManagingUser] = useState<User | null>(null)
+  const [stores, setStores] = useState<StoreType[]>([])
+  const [userStores, setUserStores] = useState<UserStore[]>([])
   const { profile } = useAuthStore()
 
   const [formData, setFormData] = useState({
@@ -33,6 +49,7 @@ export default function UsersPage() {
   useEffect(() => {
     if (profile?.role === 'admin') {
       fetchUsers()
+      fetchStores()
     }
   }, [profile])
 
@@ -61,6 +78,95 @@ export default function UsersPage() {
       toast.error('Failed to fetch users')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchStores = async () => {
+    const { data, error } = await supabase
+      .from('stores')
+      .select('*')
+      .eq('is_active', true)
+      .order('name')
+
+    if (data && !error) {
+      setStores(data)
+    }
+  }
+
+  const fetchUserStores = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('user_stores')
+      .select('*')
+      .eq('user_id', userId)
+
+    if (data && !error) {
+      setUserStores(data)
+    }
+  }
+
+  const handleManageStores = async (user: User) => {
+    setManagingUser(user)
+    await fetchUserStores(user.id)
+    setShowStoreModal(true)
+  }
+
+  const handleToggleUserStore = async (storeId: string) => {
+    if (!managingUser) return
+
+    const existingAssociation = userStores.find(us => us.store_id === storeId)
+
+    try {
+      if (existingAssociation) {
+        // Remove association
+        const { error } = await supabase
+          .from('user_stores')
+          .delete()
+          .eq('id', existingAssociation.id)
+
+        if (error) throw error
+        toast.success('Store access removed')
+      } else {
+        // Add association
+        const { error } = await supabase
+          .from('user_stores')
+          .insert({
+            user_id: managingUser.id,
+            store_id: storeId,
+            is_default: userStores.length === 0 // First store is default
+          })
+
+        if (error) throw error
+        toast.success('Store access granted')
+      }
+
+      await fetchUserStores(managingUser.id)
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update store access')
+    }
+  }
+
+  const handleSetDefaultStore = async (storeId: string) => {
+    if (!managingUser) return
+
+    try {
+      // Remove default from all stores for this user
+      await supabase
+        .from('user_stores')
+        .update({ is_default: false })
+        .eq('user_id', managingUser.id)
+
+      // Set new default
+      const { error } = await supabase
+        .from('user_stores')
+        .update({ is_default: true })
+        .eq('user_id', managingUser.id)
+        .eq('store_id', storeId)
+
+      if (error) throw error
+      toast.success('Default store updated')
+      await fetchUserStores(managingUser.id)
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to set default store')
     }
   }
 
@@ -249,6 +355,13 @@ export default function UsersPage() {
                     <td className="px-6 py-4">
                       <div className="flex gap-2">
                         <button
+                          onClick={() => handleManageStores(user)}
+                          className="text-purple-600 hover:text-purple-800"
+                          title="Manage stores"
+                        >
+                          <Store size={18} />
+                        </button>
+                        <button
                           onClick={() => handleEdit(user)}
                           className="text-blue-600 hover:text-blue-800"
                           title="Edit user"
@@ -380,6 +493,88 @@ export default function UsersPage() {
           </div>
         </div>
       </div>
+
+      {/* Store Management Modal */}
+      <Modal
+        isOpen={showStoreModal}
+        onClose={() => {
+          setShowStoreModal(false)
+          setManagingUser(null)
+          setUserStores([])
+        }}
+        title={`Manage Stores - ${managingUser?.full_name}`}
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Select which stores this user can access. The default store will be selected automatically when they log in.
+          </p>
+
+          <div className="space-y-2">
+            {stores.map(store => {
+              const userStore = userStores.find(us => us.store_id === store.id)
+              const hasAccess = !!userStore
+              const isDefault = userStore?.is_default || false
+
+              return (
+                <div
+                  key={store.id}
+                  className={`p-4 border rounded-lg ${hasAccess ? 'border-green-300 bg-green-50' : 'border-gray-200'}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={hasAccess}
+                        onChange={() => handleToggleUserStore(store.id)}
+                        className="w-5 h-5 text-green-600 rounded focus:ring-green-500"
+                      />
+                      <div>
+                        <p className="font-medium text-gray-900">{store.name}</p>
+                        <p className="text-sm text-gray-500">Code: {store.code}</p>
+                      </div>
+                    </div>
+
+                    {hasAccess && (
+                      <button
+                        onClick={() => handleSetDefaultStore(store.id)}
+                        className={`px-3 py-1 text-xs font-medium rounded-full ${
+                          isDefault
+                            ? 'bg-green-600 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        {isDefault ? '✓ Default' : 'Set Default'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {userStores.length === 0 && (
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800">
+                ⚠️ This user has no store access. Please assign at least one store.
+              </p>
+            </div>
+          )}
+
+          <div className="flex justify-end pt-4">
+            <Button
+              onClick={() => {
+                setShowStoreModal(false)
+                setManagingUser(null)
+                setUserStores([])
+              }}
+              variant="secondary"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

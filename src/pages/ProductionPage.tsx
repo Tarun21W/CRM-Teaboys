@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
+import { useStoreStore } from '@/stores/storeStore'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import { Plus, Edit, Trash2, Factory, Beaker } from 'lucide-react'
@@ -39,6 +40,8 @@ interface ProductionRun {
 }
 
 export default function ProductionPage() {
+  const { user } = useAuthStore()
+  const { currentStore } = useStoreStore()
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [productionRuns, setProductionRuns] = useState<ProductionRun[]>([])
   const [products, setProducts] = useState<any[]>([])
@@ -47,7 +50,6 @@ export default function ProductionPage() {
   const [showRecipeModal, setShowRecipeModal] = useState(false)
   const [showProductionModal, setShowProductionModal] = useState(false)
   const [activeTab, setActiveTab] = useState<'recipes' | 'production'>('recipes')
-  const { user } = useAuthStore()
 
   const [recipeForm, setRecipeForm] = useState({
     product_id: '',
@@ -69,8 +71,10 @@ export default function ProductionPage() {
   })
 
   useEffect(() => {
-    fetchData()
-  }, [])
+    if (currentStore) {
+      fetchData()
+    }
+  }, [currentStore])
 
   const fetchData = async () => {
     setLoading(true)
@@ -100,6 +104,8 @@ export default function ProductionPage() {
   }
 
   const fetchProductionRuns = async () => {
+    if (!currentStore) return
+
     const { data } = await supabase
       .from('production_runs')
       .select(`
@@ -107,6 +113,7 @@ export default function ProductionPage() {
         products(name),
         recipes(batch_size, batch_unit)
       `)
+      .eq('store_id', currentStore.id)
       .order('production_date', { ascending: false })
       .limit(20)
 
@@ -209,6 +216,7 @@ export default function ProductionPage() {
           quantity_produced: parseFloat(productionForm.quantity_produced),
           production_date: productionForm.production_date,
           production_cost: productionCost,
+          store_id: currentStore?.id,
           created_by: user?.id,
         }])
         .select()

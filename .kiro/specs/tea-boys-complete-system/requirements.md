@@ -307,6 +307,30 @@ This document outlines the complete requirements for the Tea Boys Bakery & Tea S
 
 ---
 
+### Requirement 16: Multi-Store Management with Store-Specific Data Isolation
+
+**User Story:** As a Manager, I want to view and manage data separately for each store location, so that I can track performance and inventory independently across multiple branches.
+
+#### Acceptance Criteria
+
+1. WHEN a User logs in, THE System SHALL require selection of active store from available stores
+2. WHEN a User selects a store, THE System SHALL filter all data to show only that store's information
+3. WHEN a Manager views dashboard, THE System SHALL display KPIs for the currently selected store only
+4. WHEN a Manager views sales reports, THE System SHALL show transactions for the currently selected store only
+5. WHEN a Manager views production records, THE System SHALL display production runs for the currently selected store only
+6. WHEN a Manager views inventory, THE System SHALL show stock levels for the currently selected store only
+7. WHEN a Cashier processes a sale, THE System SHALL associate the transaction with the currently selected store
+8. WHEN a Baker records production, THE System SHALL deduct ingredients from the currently selected store's inventory
+9. WHEN a Manager switches stores, THE System SHALL refresh all data to reflect the newly selected store
+10. WHERE a User has Admin role, THE System SHALL allow viewing consolidated reports across all stores
+11. WHEN an Admin views multi-store analytics, THE System SHALL display comparative metrics for all stores
+12. WHEN a Manager views profit reports, THE System SHALL calculate profits based on the currently selected store's data
+13. WHEN a Manager views hourly sales chart, THE System SHALL show sales trend for the currently selected store only
+14. WHEN a Manager views top selling items, THE System SHALL rank products based on the currently selected store's sales
+15. WHEN a User views low stock alerts, THE System SHALL show alerts for the currently selected store only
+
+---
+
 ## Success Metrics
 
 1. **Inventory Traceability**: 100% of stock movements tracked from purchase to sale
@@ -343,7 +367,7 @@ This document outlines the complete requirements for the Tea Boys Bakery & Tea S
 2. Staff have basic computer literacy
 3. Internet connection available most of the time
 4. Thermal printer supports ESC/POS protocol
-5. Single shop location initially (multi-branch in future)
+5. System supports multiple store locations with independent inventory and sales tracking
 6. GST compliance not required in MVP (future phase)
 7. Customer database not required in MVP
 8. Supplier payments tracked separately

@@ -35,20 +35,64 @@ export const useStoreStore = create<StoreState>((set, get) => ({
 
   fetchStores: async () => {
     set({ loading: true })
+    
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      set({ loading: false })
+      return
+    }
+
+    // Fetch stores the user has access to via user_stores
+    const { data: userStores, error: userStoresError } = await supabase
+      .from('user_stores')
+      .select('store_id, is_default')
+      .eq('user_id', user.id)
+
+    if (userStoresError || !userStores || userStores.length === 0) {
+      // Fallback: fetch all stores if no user_stores associations
+      const { data, error } = await supabase
+        .from('stores')
+        .select('*')
+        .eq('is_active', true)
+        .order('name')
+
+      if (data && !error) {
+        set({ stores: data })
+        
+        const savedStoreId = localStorage.getItem('currentStoreId')
+        const currentStore = savedStoreId 
+          ? data.find(s => s.id === savedStoreId) || data[0]
+          : data[0]
+        
+        if (currentStore) {
+          set({ currentStore })
+        }
+      }
+      set({ loading: false })
+      return
+    }
+
+    // Fetch the actual store details
+    const storeIds = userStores.map(us => us.store_id)
     const { data, error } = await supabase
       .from('stores')
       .select('*')
+      .in('id', storeIds)
       .eq('is_active', true)
       .order('name')
 
     if (data && !error) {
       set({ stores: data })
       
-      // Set current store from localStorage or first store
+      // Set current store from localStorage, default store, or first store
       const savedStoreId = localStorage.getItem('currentStoreId')
+      const defaultStore = userStores.find(us => us.is_default)
+      
       const currentStore = savedStoreId 
-        ? data.find(s => s.id === savedStoreId) || data[0]
-        : data[0]
+        ? data.find(s => s.id === savedStoreId) 
+        : defaultStore 
+          ? data.find(s => s.id === defaultStore.store_id)
+          : data[0]
       
       if (currentStore) {
         set({ currentStore })

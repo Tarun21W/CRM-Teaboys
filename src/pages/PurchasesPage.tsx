@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
+import { useStoreStore } from '@/stores/storeStore'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import { Plus, Edit, Trash2, FileText, Search } from 'lucide-react'
@@ -41,13 +42,14 @@ interface Product {
 }
 
 export default function PurchasesPage() {
+  const { user } = useAuthStore()
+  const { currentStore } = useStoreStore()
   const [purchases, setPurchases] = useState<Purchase[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [search, setSearch] = useState('')
-  const { user } = useAuthStore()
 
   const [formData, setFormData] = useState({
     supplier_id: '',
@@ -59,12 +61,14 @@ export default function PurchasesPage() {
   const [lineItems, setLineItems] = useState<Array<{
     product_id: string
     quantity: string
-    unit_cost: string
-  }>>([{ product_id: '', quantity: '', unit_cost: '' }])
+    total_cost: string
+  }>>([{ product_id: '', quantity: '', total_cost: '' }])
 
   useEffect(() => {
-    fetchData()
-  }, [])
+    if (currentStore) {
+      fetchData()
+    }
+  }, [currentStore])
 
   const fetchData = async () => {
     setLoading(true)
@@ -73,6 +77,8 @@ export default function PurchasesPage() {
   }
 
   const fetchPurchases = async () => {
+    if (!currentStore) return
+
     const { data, error } = await supabase
       .from('purchases')
       .select(`
@@ -83,6 +89,7 @@ export default function PurchasesPage() {
           products(name, unit)
         )
       `)
+      .eq('store_id', currentStore.id)
       .order('purchase_date', { ascending: false })
 
     if (error) {
@@ -117,7 +124,7 @@ export default function PurchasesPage() {
 
     // Validate line items
     const validLines = lineItems.filter(
-      line => line.product_id && line.quantity && line.unit_cost
+      line => line.product_id && line.quantity && line.total_cost
     )
 
     if (validLines.length === 0) {
@@ -130,9 +137,9 @@ export default function PurchasesPage() {
       const { data: purchaseNum, error: numError } = await supabase.rpc('generate_purchase_number')
       if (numError) throw numError
 
-      // Calculate total
+      // Calculate total from manually entered total costs
       const total = validLines.reduce(
-        (sum, line) => sum + parseFloat(line.quantity) * parseFloat(line.unit_cost),
+        (sum, line) => sum + parseFloat(line.total_cost),
         0
       )
 
@@ -146,6 +153,7 @@ export default function PurchasesPage() {
           invoice_number: formData.invoice_number || null,
           total_amount: total,
           notes: formData.notes || null,
+          store_id: currentStore?.id,
           created_by: user?.id,
         }])
         .select()
@@ -153,14 +161,20 @@ export default function PurchasesPage() {
 
       if (purchaseError) throw purchaseError
 
-      // Insert purchase lines
-      const lines = validLines.map(line => ({
-        purchase_id: purchase.id,
-        product_id: line.product_id,
-        quantity: parseFloat(line.quantity),
-        unit_cost: parseFloat(line.unit_cost),
-        total_cost: parseFloat(line.quantity) * parseFloat(line.unit_cost),
-      }))
+      // Insert purchase lines with calculated unit cost
+      const lines = validLines.map(line => {
+        const totalCost = parseFloat(line.total_cost)
+        const quantity = parseFloat(line.quantity)
+        const unitCost = quantity > 0 ? totalCost / quantity : 0
+        
+        return {
+          purchase_id: purchase.id,
+          product_id: line.product_id,
+          quantity: quantity,
+          unit_cost: unitCost,
+          total_cost: totalCost,
+        }
+      })
 
       const { error: linesError } = await supabase
         .from('purchase_lines')
@@ -198,18 +212,13 @@ export default function PurchasesPage() {
       invoice_number: '',
       notes: '',
     })
-    setLineItems([{ product_id: '', quantity: '', unit_cost: '' }])
-  }
-
-  const calculateLineTotal = (quantity: string, unitCost: string) => {
-    const qty = parseFloat(quantity) || 0
-    const cost = parseFloat(unitCost) || 0
-    return qty * cost
+    setLineItems([{ product_id: '', quantity: '', total_cost: '' }])
   }
 
   const calculateGrandTotal = () => {
     return lineItems.reduce((sum, line) => {
-      return sum + calculateLineTotal(line.quantity, line.unit_cost)
+      const totalCost = parseFloat(line.total_cost) || 0
+      return sum + totalCost
     }, 0)
   }
 
@@ -349,58 +358,73 @@ export default function PurchasesPage() {
             </div>
 
             <div className="space-y-2">
-              {lineItems.map((line, index) => (
-                <div key={index} className="grid grid-cols-12 gap-2 items-end">
-                  <div className="col-span-5">
-                    <select
-                      value={line.product_id}
-                      onChange={(e) => updateLineItem(index, 'product_id', e.target.value)}
-                      className="w-full px-3 py-2 border rounded-lg text-sm"
-                    >
-                      <option value="">Select Product</option>
-                      {products.map(product => (
-                        <option key={product.id} value={product.id}>
-                          {product.name} ({product.unit})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="col-span-2">
-                    <input
-                      type="number"
-                      step="0.001"
-                      placeholder="Qty"
-                      value={line.quantity}
-                      onChange={(e) => updateLineItem(index, 'quantity', e.target.value)}
-                      className="w-full px-3 py-2 border rounded-lg text-sm"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="Cost"
-                      value={line.unit_cost}
-                      onChange={(e) => updateLineItem(index, 'unit_cost', e.target.value)}
-                      className="w-full px-3 py-2 border rounded-lg text-sm"
-                    />
-                  </div>
-                  <div className="col-span-2 text-right font-medium">
-                    {formatCurrency(calculateLineTotal(line.quantity, line.unit_cost))}
-                  </div>
-                  <div className="col-span-1">
-                    {lineItems.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeLineItem(index)}
-                        className="text-red-600 hover:text-red-800"
+              {lineItems.map((line, index) => {
+                const selectedProduct = products.find(p => p.id === line.product_id)
+                return (
+                  <div key={index} className="grid grid-cols-12 gap-2 items-end">
+                    <div className="col-span-5">
+                      <select
+                        value={line.product_id}
+                        onChange={(e) => updateLineItem(index, 'product_id', e.target.value)}
+                        className="w-full px-3 py-2 border rounded-lg text-sm"
                       >
-                        <Trash2 size={18} />
-                      </button>
-                    )}
+                        <option value="">Select Product</option>
+                        {products.map(product => (
+                          <option key={product.id} value={product.id}>
+                            {product.name} ({product.unit})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-span-2">
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="0.001"
+                          placeholder="Qty"
+                          value={line.quantity}
+                          onChange={(e) => updateLineItem(index, 'quantity', e.target.value)}
+                          className="w-full px-3 py-2 pr-8 border rounded-lg text-sm"
+                        />
+                        {selectedProduct && (
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                            {selectedProduct.unit}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                          ₹
+                        </span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="Total Cost"
+                          value={line.total_cost}
+                          onChange={(e) => updateLineItem(index, 'total_cost', e.target.value)}
+                          className="w-full pl-6 pr-3 py-2 border rounded-lg text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="col-span-2 text-right font-medium">
+                      {formatCurrency(parseFloat(line.total_cost) || 0)}
+                    </div>
+                    <div className="col-span-1">
+                      {lineItems.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeLineItem(index)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
 
             <div className="mt-4 pt-4 border-t flex justify-between items-center">

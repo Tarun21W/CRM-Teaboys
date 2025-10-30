@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useStoreStore } from '@/stores/storeStore'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { AlertTriangle, Clock, CheckCircle, XCircle, Package } from 'lucide-react'
 import Button from '@/components/ui/Button'
@@ -19,19 +20,25 @@ interface ExpiringBatch {
 }
 
 export default function ExpirationTrackingPage() {
+  const { currentStore } = useStoreStore()
   const [batches, setBatches] = useState<ExpiringBatch[]>([])
   const [loading, setLoading] = useState(false)
   const [filter, setFilter] = useState<'all' | 'expired' | 'critical' | 'warning' | 'good'>('all')
 
   useEffect(() => {
-    fetchExpiringBatches()
-  }, [])
+    if (currentStore) {
+      fetchExpiringBatches()
+    }
+  }, [currentStore])
 
   const fetchExpiringBatches = async () => {
+    if (!currentStore) return
+    
     setLoading(true)
     const { data, error } = await supabase
       .from('expiring_finished_goods')
       .select('*')
+      .eq('store_id', currentStore.id)
       .order('expiration_date', { ascending: true })
 
     if (data) {
@@ -71,6 +78,7 @@ export default function ExpirationTrackingPage() {
       .from('wastage')
       .insert({
         product_id: batch.product_id,
+        store_id: currentStore?.id,
         quantity: batch.quantity_remaining,
         reason: 'Expired',
         cost_value: costValue,

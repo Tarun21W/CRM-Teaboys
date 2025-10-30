@@ -69,50 +69,45 @@ export default function ProductsPage() {
   }
 
   const fetchProducts = async () => {
-    // Get current store
-    const currentStore = useStoreStore.getState().currentStore
-    
-    if (!currentStore) {
-      // If no store selected, get user's default store
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+    if (!currentStore) return
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('store_id')
-        .eq('id', user.id)
-        .single()
+    // Fetch all products with their store-specific inventory
+    const { data: productsData, error: productsError } = await supabase
+      .from('products')
+      .select('*, categories(name)')
+      .eq('is_active', true)
+      .order('name')
 
-      if (!profile?.store_id) {
-        toast.error('No store assigned to user')
-        return
-      }
-
-      const { data, error } = await supabase
-        .from('products')
-        .select('*, categories(name)')
-        .eq('store_id', profile.store_id)
-        .order('name')
-
-      if (error) {
-        toast.error('Failed to fetch products')
-      } else {
-        setProducts(data || [])
-      }
-    } else {
-      // Fetch products for current store
-      const { data, error } = await supabase
-        .from('products')
-        .select('*, categories(name)')
-        .eq('store_id', currentStore.id)
-        .order('name')
-
-      if (error) {
-        toast.error('Failed to fetch products')
-      } else {
-        setProducts(data || [])
-      }
+    if (productsError) {
+      toast.error('Failed to fetch products')
+      return
     }
+
+    // Fetch store inventory for current store
+    const { data: inventoryData, error: inventoryError } = await supabase
+      .from('store_inventory')
+      .select('*')
+      .eq('store_id', currentStore.id)
+
+    if (inventoryError) {
+      toast.error('Failed to fetch inventory')
+      return
+    }
+
+    // Merge products with their store-specific inventory
+    const inventoryMap = new Map(inventoryData?.map(inv => [inv.product_id, inv]) || [])
+    
+    const mergedProducts = productsData?.map(product => {
+      const inventory = inventoryMap.get(product.id)
+      return {
+        ...product,
+        current_stock: inventory?.current_stock || 0,
+        weighted_avg_cost: inventory?.weighted_avg_cost || 0,
+        reorder_level: inventory?.reorder_level || 0,
+      }
+    }) || []
+
+    setProducts(mergedProducts)
   }
 
   const fetchCategories = async () => {

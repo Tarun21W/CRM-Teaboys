@@ -111,6 +111,7 @@ export default function POSPage() {
               payment_mode: paymentMode,
               customer_name: customerName || null,
               customer_phone: customerPhone || null,
+              store_id: currentStore?.id,
               created_by: user?.id,
             })
             .select()

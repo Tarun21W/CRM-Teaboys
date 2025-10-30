@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useStoreStore } from '@/stores/storeStore'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Download, Calendar, TrendingUp, Package, DollarSign, Users, BarChart3 } from 'lucide-react'
 import Button from '@/components/ui/Button'
@@ -71,6 +72,7 @@ interface DayPattern {
 }
 
 export default function ReportsPage() {
+  const { currentStore } = useStoreStore()
   const [activeReport, setActiveReport] = useState<'sales' | 'products' | 'stock' | 'profit' | 'trends' | 'predictions'>('sales')
   const [dateRange, setDateRange] = useState({
     from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -95,8 +97,10 @@ export default function ReportsPage() {
   })
 
   useEffect(() => {
-    fetchReports()
-  }, [dateRange])
+    if (currentStore) {
+      fetchReports()
+    }
+  }, [dateRange, currentStore])
 
   const fetchReports = async () => {
     setLoading(true)
@@ -112,9 +116,12 @@ export default function ReportsPage() {
   }
 
   const fetchSalesReport = async () => {
+    if (!currentStore) return
+
     const { data } = await supabase
       .from('sales')
       .select('sale_date, total_amount')
+      .eq('store_id', currentStore.id)
       .gte('sale_date', dateRange.from)
       .lte('sale_date', dateRange.to + 'T23:59:59')
       .order('sale_date')
@@ -142,6 +149,23 @@ export default function ReportsPage() {
   }
 
   const fetchProductReport = async () => {
+    if (!currentStore) return
+
+    // Get sales for this store first
+    const { data: salesData } = await supabase
+      .from('sales')
+      .select('id')
+      .eq('store_id', currentStore.id)
+      .gte('sale_date', dateRange.from)
+      .lte('sale_date', dateRange.to + 'T23:59:59')
+
+    if (!salesData || salesData.length === 0) {
+      setProductData([])
+      return
+    }
+
+    const saleIds = salesData.map(s => s.id)
+
     const { data } = await supabase
       .from('sales_lines')
       .select(`
@@ -150,6 +174,7 @@ export default function ReportsPage() {
         cost_price,
         products(name)
       `)
+      .in('sale_id', saleIds)
       .gte('created_at', dateRange.from)
       .lte('created_at', dateRange.to + 'T23:59:59')
 
@@ -178,20 +203,27 @@ export default function ReportsPage() {
   }
 
   const fetchStockReport = async () => {
+    if (!currentStore) return
+
     const { data } = await supabase
-      .from('products')
-      .select('name, current_stock, weighted_avg_cost, reorder_level')
-      .eq('is_active', true)
-      .order('name')
+      .from('store_inventory')
+      .select(`
+        current_stock,
+        weighted_avg_cost,
+        reorder_level,
+        products(name)
+      `)
+      .eq('store_id', currentStore.id)
+      .order('products(name)')
 
     if (data) {
-      const stockReport = data.map(product => ({
-        product_name: product.name,
-        current_stock: product.current_stock,
-        stock_value: product.current_stock * product.weighted_avg_cost,
-        reorder_level: product.reorder_level,
-        status: product.current_stock <= 0 ? 'out' as const :
-                product.current_stock <= product.reorder_level ? 'low' as const : 'ok' as const
+      const stockReport = data.map((item: any) => ({
+        product_name: item.products?.name || 'Unknown',
+        current_stock: item.current_stock,
+        stock_value: item.current_stock * item.weighted_avg_cost,
+        reorder_level: item.reorder_level,
+        status: item.current_stock <= 0 ? 'out' as const :
+                item.current_stock <= item.reorder_level ? 'low' as const : 'ok' as const
       }))
 
       setStockData(stockReport)
@@ -281,10 +313,13 @@ export default function ReportsPage() {
   }
 
   const fetchSummary = async () => {
-    // Total sales and orders
+    if (!currentStore) return
+
+    // Total sales and orders - filtered by store
     const { data: sales } = await supabase
       .from('sales')
       .select('total_amount')
+      .eq('store_id', currentStore.id)
       .gte('sale_date', dateRange.from)
       .lte('sale_date', dateRange.to + 'T23:59:59')
 
@@ -292,10 +327,32 @@ export default function ReportsPage() {
     const totalOrders = sales?.length || 0
     const avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0
 
-    // Calculate total profit from product data
+    // Calculate total profit from product data - filtered by store's sales
+    const { data: storeSales } = await supabase
+      .from('sales')
+      .select('id')
+      .eq('store_id', currentStore.id)
+      .gte('sale_date', dateRange.from)
+      .lte('sale_date', dateRange.to + 'T23:59:59')
+
+    if (!storeSales || storeSales.length === 0) {
+      setSummary({
+        totalSales: 0,
+        totalOrders: 0,
+        totalProfit: 0,
+        avgOrderValue: 0,
+        topProduct: 'N/A',
+        lowStockItems: 0
+      })
+      return
+    }
+
+    const saleIds = storeSales.map(s => s.id)
+
     const { data: salesLines } = await supabase
       .from('sales_lines')
       .select('line_total, cost_price, quantity')
+      .in('sale_id', saleIds)
       .gte('created_at', dateRange.from)
       .lte('created_at', dateRange.to + 'T23:59:59')
 
@@ -305,13 +362,13 @@ export default function ReportsPage() {
       return sum + (revenue - cost)
     }, 0) || 0
 
-    // Low stock items
-    const { data: allProducts } = await supabase
-      .from('products')
-      .select('id, current_stock, reorder_level')
-      .eq('is_active', true)
+    // Low stock items - from store_inventory
+    const { data: storeInventory } = await supabase
+      .from('store_inventory')
+      .select('current_stock, reorder_level')
+      .eq('store_id', currentStore.id)
 
-    const lowStock = allProducts?.filter(p => p.current_stock <= p.reorder_level) || []
+    const lowStock = storeInventory?.filter(inv => inv.current_stock <= inv.reorder_level) || []
 
     setSummary({
       totalSales,

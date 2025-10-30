@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
+import { useStoreStore } from '@/stores/storeStore'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { TrendingUp, Package, ShoppingCart, AlertTriangle, DollarSign, Users } from 'lucide-react'
 
@@ -30,6 +31,7 @@ interface TopProduct {
 
 export default function DashboardPage() {
   const { profile } = useAuthStore()
+  const { currentStore } = useStoreStore()
   const [stats, setStats] = useState<DashboardStats>({
     todaySales: 0,
     todayOrders: 0,
@@ -43,12 +45,18 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchDashboardData()
+    if (currentStore) {
+      fetchDashboardData()
+    }
     
     // Refresh every 30 seconds
-    const interval = setInterval(fetchDashboardData, 30000)
+    const interval = setInterval(() => {
+      if (currentStore) {
+        fetchDashboardData()
+      }
+    }, 30000)
     return () => clearInterval(interval)
-  }, [])
+  }, [currentStore])
 
   const fetchDashboardData = async () => {
     setLoading(true)
@@ -64,13 +72,16 @@ export default function DashboardPage() {
   }
 
   const fetchStats = async () => {
+    if (!currentStore) return
+
     const today = new Date().toISOString().split('T')[0]
     const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-    // Today's sales
+    // Today's sales - filtered by store
     const { data: sales } = await supabase
       .from('sales')
       .select('total_amount, customer_name, customer_phone')
+      .eq('store_id', currentStore.id)
       .gte('sale_date', today)
       .lt('sale_date', tomorrow)
 
@@ -95,21 +106,21 @@ export default function DashboardPage() {
     
     const totalCustomers = uniqueCustomers.size + walkInCount
 
-    // Low stock products - using proper comparison
-    const { data: allProducts } = await supabase
-      .from('products')
-      .select('id, current_stock, reorder_level')
-      .eq('is_active', true)
+    // Low stock products - using store_inventory filtered by store
+    const { data: storeInventory } = await supabase
+      .from('store_inventory')
+      .select('id, current_stock, reorder_level, product_id')
+      .eq('store_id', currentStore.id)
 
-    const lowStockProducts = allProducts?.filter(
+    const lowStockProducts = storeInventory?.filter(
       p => p.current_stock <= p.reorder_level
     ) || []
 
-    // Total products
+    // Total products - count from store_inventory for this store
     const { count: totalProducts } = await supabase
-      .from('products')
+      .from('store_inventory')
       .select('*', { count: 'exact', head: true })
-      .eq('is_active', true)
+      .eq('store_id', currentStore.id)
 
     setStats({
       todaySales,
@@ -122,9 +133,12 @@ export default function DashboardPage() {
   }
 
   const fetchRecentSales = async () => {
+    if (!currentStore) return
+
     const { data } = await supabase
       .from('sales')
       .select('id, bill_number, total_amount, payment_mode, sale_date, customer_name')
+      .eq('store_id', currentStore.id)
       .order('sale_date', { ascending: false })
       .limit(5)
 
@@ -132,8 +146,24 @@ export default function DashboardPage() {
   }
 
   const fetchTopProducts = async () => {
+    if (!currentStore) return
+
     const today = new Date()
     const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+
+    // Get sales lines for this store's sales only
+    const { data: salesData } = await supabase
+      .from('sales')
+      .select('id')
+      .eq('store_id', currentStore.id)
+      .gte('sale_date', weekAgo.toISOString())
+
+    if (!salesData || salesData.length === 0) {
+      setTopProducts([])
+      return
+    }
+
+    const saleIds = salesData.map(s => s.id)
 
     const { data } = await supabase
       .from('sales_lines')
@@ -142,6 +172,7 @@ export default function DashboardPage() {
         line_total,
         products (name)
       `)
+      .in('sale_id', saleIds)
       .gte('created_at', weekAgo.toISOString())
 
     if (data) {
@@ -230,7 +261,9 @@ export default function DashboardPage() {
               <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
                 Dashboard
               </h1>
-              <p className="text-gray-500 text-sm">Brewing success, one cup at a time</p>
+              <p className="text-gray-500 text-sm">
+                {currentStore ? `${currentStore.name} • ` : ''}Brewing success, one cup at a time
+              </p>
             </div>
           </div>
         </div>

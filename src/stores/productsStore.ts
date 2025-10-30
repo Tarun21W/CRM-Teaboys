@@ -40,48 +40,43 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
     try {
       // Get current store from storeStore
       const currentStore = useStoreStore.getState().currentStore
-      
+
       if (!currentStore) {
-        // If no store selected, fetch from user's default store
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) {
-          set({ products: [], loading: false })
-          return
-        }
-
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('store_id')
-          .eq('id', user.id)
-          .single()
-
-        if (!profile || !(profile as any).store_id) {
-          set({ products: [], loading: false, error: 'No store assigned' })
-          return
-        }
-
-        // Fetch products for user's store
-        const { data, error } = await supabase
-          .from('products')
-          .select('*, categories(name)')
-          .eq('is_active', true)
-          .eq('store_id', (profile as any).store_id)
-          .order('name')
-
-        if (error) throw error
-        set({ products: data || [], loading: false })
-      } else {
-        // Fetch products for current store
-        const { data, error } = await supabase
-          .from('products')
-          .select('*, categories(name)')
-          .eq('is_active', true)
-          .eq('store_id', currentStore.id)
-          .order('name')
-
-        if (error) throw error
-        set({ products: data || [], loading: false })
+        set({ products: [], loading: false, error: 'No store selected' })
+        return
       }
+
+      // Fetch all active products
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('*, categories(name)')
+        .eq('is_active', true)
+        .order('name')
+
+      if (productsError) throw productsError
+
+      // Fetch store-specific inventory
+      const { data: inventoryData, error: inventoryError } = await supabase
+        .from('store_inventory')
+        .select('*')
+        .eq('store_id', currentStore.id)
+
+      if (inventoryError) throw inventoryError
+
+      // Merge products with their store-specific inventory
+      const inventoryMap = new Map(inventoryData?.map(inv => [inv.product_id, inv]) || [])
+      
+      const mergedProducts = productsData?.map(product => {
+        const inventory = inventoryMap.get(product.id)
+        return {
+          ...product,
+          current_stock: inventory?.current_stock || 0,
+          weighted_avg_cost: inventory?.weighted_avg_cost || 0,
+          reorder_level: inventory?.reorder_level || 0,
+        }
+      }) || []
+
+      set({ products: mergedProducts, loading: false })
     } catch (error: any) {
       set({ error: error.message, loading: false })
     }
