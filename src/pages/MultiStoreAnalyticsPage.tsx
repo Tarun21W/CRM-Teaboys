@@ -292,58 +292,72 @@ export default function MultiStoreAnalyticsPage() {
       {/* Sales Distribution Pie Chart */}
       <div className="bg-white p-6 rounded-xl shadow-sm">
         <h3 className="text-lg font-semibold mb-4">Sales Distribution</h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={storeMetrics}
-                dataKey="total_sales"
-                nameKey="store_name"
-                cx="50%"
-                cy="50%"
-                outerRadius={100}
-                label={(entry) => `${entry.store_name}: ${((entry.total_sales / totalMetrics.totalSales) * 100).toFixed(1)}%`}
-              >
-                {storeMetrics.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-            </PieChart>
-          </ResponsiveContainer>
-
-          <div className="space-y-4">
-            {storeMetrics.map((store, index) => (
-              <div key={store.store_id} className="border rounded-lg p-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <div 
-                    className="w-4 h-4 rounded-full" 
-                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                  />
-                  <h4 className="font-semibold">{store.store_name}</h4>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <p className="text-gray-500">Sales</p>
-                    <p className="font-bold text-green-600">{formatCurrency(store.total_sales)}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Orders</p>
-                    <p className="font-bold">{store.total_orders}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Profit</p>
-                    <p className="font-bold text-purple-600">{formatCurrency(store.total_profit)}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Avg Order</p>
-                    <p className="font-bold">{formatCurrency(store.avg_order_value)}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
+        {totalMetrics.totalSales === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            <p className="text-lg mb-2">No sales data available for the selected period</p>
+            <p className="text-sm">Start making sales in any store to see the distribution</p>
           </div>
-        </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={storeMetrics.filter(m => m.total_sales > 0)}
+                  dataKey="total_sales"
+                  nameKey="store_name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  label={(entry) => `${entry.store_name}: ${((entry.total_sales / totalMetrics.totalSales) * 100).toFixed(1)}%`}
+                >
+                  {storeMetrics.filter(m => m.total_sales > 0).map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+              </PieChart>
+            </ResponsiveContainer>
+
+            <div className="space-y-4">
+              {storeMetrics.map((store, index) => (
+                <div key={store.store_id} className="border rounded-lg p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div 
+                      className="w-4 h-4 rounded-full" 
+                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    />
+                    <h4 className="font-semibold">{store.store_name}</h4>
+                    {store.total_sales === 0 && (
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">No Sales</span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <p className="text-gray-500">Sales</p>
+                      <p className={`font-bold ${store.total_sales > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                        {formatCurrency(store.total_sales)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Orders</p>
+                      <p className="font-bold">{store.total_orders}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Profit</p>
+                      <p className={`font-bold ${store.total_profit > 0 ? 'text-purple-600' : 'text-gray-400'}`}>
+                        {formatCurrency(store.total_profit)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Avg Order</p>
+                      <p className="font-bold">{formatCurrency(store.avg_order_value)}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Store Performance Table */}
