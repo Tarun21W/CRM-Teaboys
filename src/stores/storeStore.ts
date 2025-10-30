@@ -42,14 +42,17 @@ export const useStoreStore = create<StoreState>((set, get) => ({
       return
     }
 
-    // Fetch stores the user has access to via user_stores
-    const { data: userStores, error: userStoresError } = await supabase
-      .from('user_stores')
-      .select('store_id, is_default')
-      .eq('user_id', user.id)
+    // Check if user is admin
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
 
-    if (userStoresError || !userStores || userStores.length === 0) {
-      // Fallback: fetch all stores if no user_stores associations
+    const isAdmin = profile?.role === 'admin'
+
+    // Admins can access all stores
+    if (isAdmin) {
       const { data, error } = await supabase
         .from('stores')
         .select('*')
@@ -57,7 +60,7 @@ export const useStoreStore = create<StoreState>((set, get) => ({
         .order('name')
 
       if (data && !error) {
-        set({ stores: data })
+        set({ stores: data, canAccessAllStores: true })
         
         const savedStoreId = localStorage.getItem('currentStoreId')
         const currentStore = savedStoreId 
@@ -72,7 +75,19 @@ export const useStoreStore = create<StoreState>((set, get) => ({
       return
     }
 
-    // Fetch the actual store details
+    // Non-admin users: fetch only assigned stores
+    const { data: userStores, error: userStoresError } = await supabase
+      .from('user_stores')
+      .select('store_id, is_default')
+      .eq('user_id', user.id)
+
+    if (userStoresError || !userStores || userStores.length === 0) {
+      // No stores assigned - user has no access
+      set({ stores: [], currentStore: null, canAccessAllStores: false, loading: false })
+      return
+    }
+
+    // Fetch the actual store details for assigned stores only
     const storeIds = userStores.map(us => us.store_id)
     const { data, error } = await supabase
       .from('stores')
@@ -82,7 +97,7 @@ export const useStoreStore = create<StoreState>((set, get) => ({
       .order('name')
 
     if (data && !error) {
-      set({ stores: data })
+      set({ stores: data, canAccessAllStores: false })
       
       // Set current store from localStorage, default store, or first store
       const savedStoreId = localStorage.getItem('currentStoreId')
@@ -102,25 +117,18 @@ export const useStoreStore = create<StoreState>((set, get) => ({
   },
 
   fetchUserStoreAccess: async () => {
+    // This is now handled in fetchStores, but keeping for compatibility
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
     const { data } = await supabase
       .from('profiles')
-      .select('store_id, can_access_all_stores')
+      .select('role')
       .eq('id', user.id)
       .single()
 
     if (data) {
-      set({ canAccessAllStores: data.can_access_all_stores || false })
-      
-      // If user has a default store and no current store is set, use it
-      if (data.store_id && !get().currentStore) {
-        const store = get().stores.find(s => s.id === data.store_id)
-        if (store) {
-          set({ currentStore: store })
-        }
-      }
+      set({ canAccessAllStores: data.role === 'admin' })
     }
   },
 }))

@@ -250,6 +250,25 @@ export default function DashboardPage() {
     )
   }
 
+  if (!currentStore) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 max-w-md">
+          <div className="flex items-center gap-3 mb-4">
+            <AlertTriangle className="text-yellow-600" size={32} />
+            <h3 className="text-lg font-semibold text-yellow-900">No Store Access</h3>
+          </div>
+          <p className="text-yellow-800 mb-4">
+            You don't have access to any stores. Please contact your administrator to assign you to a store.
+          </p>
+          <p className="text-sm text-yellow-700">
+            Admin users can manage store assignments from the User-Store Management page.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
