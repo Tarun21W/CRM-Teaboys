@@ -105,13 +105,14 @@ export default function ExpirationTrackingPage() {
       return
     }
 
-    // Deduct from product stock
+    // Deduct from store inventory
     const { error: stockError } = await supabase
-      .from('products')
+      .from('store_inventory')
       .update({
         current_stock: supabase.raw(`current_stock - ${batch.quantity_remaining}`)
       })
-      .eq('id', batch.product_id)
+      .eq('product_id', batch.product_id)
+      .eq('store_id', currentStore?.id)
 
     if (stockError) {
       alert('Error updating stock: ' + stockError.message)
