@@ -122,33 +122,74 @@ export default function ProductsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Separate product data from inventory data
     const productData = {
-      ...formData,
-      selling_price: formData.is_finished_good ? parseFloat(formData.selling_price) : 0,
-      current_stock: parseFloat(formData.current_stock),
-      weighted_avg_cost: parseFloat(formData.weighted_avg_cost || '0'),
-      reorder_level: parseFloat(formData.reorder_level || '0'),
-      shelf_life_days: formData.shelf_life_days ? parseInt(formData.shelf_life_days) : null,
+      name: formData.name,
       category_id: formData.category_id || null,
+      sku: formData.sku,
+      barcode: formData.barcode,
+      unit: formData.unit,
+      selling_price: formData.is_finished_good ? parseFloat(formData.selling_price) : 0,
+      shelf_life_days: formData.shelf_life_days ? parseInt(formData.shelf_life_days) : null,
+      is_raw_material: formData.is_raw_material,
+      is_finished_good: formData.is_finished_good,
       purchase_date: formData.purchase_date || null,
       expiration_date: formData.expiration_date || null,
     }
 
+    const inventoryData = {
+      current_stock: parseFloat(formData.current_stock),
+      weighted_avg_cost: parseFloat(formData.weighted_avg_cost || '0'),
+      reorder_level: parseFloat(formData.reorder_level || '0'),
+    }
+
     try {
       if (editingProduct) {
-        const { error } = await supabase
+        // Update product
+        const { error: productError } = await supabase
           .from('products')
           .update(productData)
           .eq('id', editingProduct.id)
 
-        if (error) throw error
+        if (productError) throw productError
+
+        // Update store inventory
+        if (currentStore) {
+          const { error: inventoryError } = await supabase
+            .from('store_inventory')
+            .upsert({
+              store_id: currentStore.id,
+              product_id: editingProduct.id,
+              ...inventoryData,
+            })
+
+          if (inventoryError) throw inventoryError
+        }
+
         toast.success('Product updated successfully')
       } else {
-        const { error } = await supabase
+        // Create product
+        const { data: newProduct, error: productError } = await supabase
           .from('products')
           .insert([productData])
+          .select()
+          .single()
 
-        if (error) throw error
+        if (productError) throw productError
+
+        // Create store inventory entry
+        if (currentStore && newProduct) {
+          const { error: inventoryError } = await supabase
+            .from('store_inventory')
+            .insert({
+              store_id: currentStore.id,
+              product_id: newProduct.id,
+              ...inventoryData,
+            })
+
+          if (inventoryError) throw inventoryError
+        }
+
         toast.success('Product created successfully')
       }
 

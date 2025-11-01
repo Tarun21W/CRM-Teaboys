@@ -487,8 +487,8 @@ export default function ReportsPage() {
                   key={tab.id}
                   onClick={() => setActiveReport(tab.id as any)}
                   className={`flex items-center gap-2 px-6 py-3 font-medium whitespace-nowrap ${activeReport === tab.id
-                      ? 'border-b-2 border-primary-600 text-primary-600'
-                      : 'text-gray-500 hover:text-gray-700'
+                    ? 'border-b-2 border-primary-600 text-primary-600'
+                    : 'text-gray-500 hover:text-gray-700'
                     }`}
                 >
                   <Icon size={18} />
@@ -644,8 +644,8 @@ export default function ReportsPage() {
                           <td className="px-4 py-3 font-bold">{formatCurrency(row.stock_value)}</td>
                           <td className="px-4 py-3">
                             <span className={`px-2 py-1 text-xs rounded-full ${row.status === 'ok' ? 'bg-green-100 text-green-600' :
-                                row.status === 'low' ? 'bg-orange-100 text-orange-600' :
-                                  'bg-red-100 text-red-600'
+                              row.status === 'low' ? 'bg-orange-100 text-orange-600' :
+                                'bg-red-100 text-red-600'
                               }`}>
                               {row.status === 'ok' ? 'Good' : row.status === 'low' ? 'Low Stock' : 'Out of Stock'}
                             </span>
@@ -938,7 +938,7 @@ export default function ReportsPage() {
                             <td className="px-4 py-3">{item.avg_daily_demand.toFixed(1)} {item.unit}/day</td>
                             <td className="px-4 py-3">
                               <span className={`font-semibold ${item.days_until_stockout <= 3 ? 'text-red-600' :
-                                  item.days_until_stockout <= 7 ? 'text-yellow-600' : 'text-green-600'
+                                item.days_until_stockout <= 7 ? 'text-yellow-600' : 'text-green-600'
                                 }`}>
                                 {item.days_until_stockout > 999 ? '∞' : Math.floor(item.days_until_stockout)}
                               </span>
@@ -948,17 +948,17 @@ export default function ReportsPage() {
                             </td>
                             <td className="px-4 py-3">
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${item.demand_trend === 'increasing' ? 'bg-green-100 text-green-800' :
-                                  item.demand_trend === 'decreasing' ? 'bg-red-100 text-red-800' :
-                                    'bg-gray-100 text-gray-800'
+                                item.demand_trend === 'decreasing' ? 'bg-red-100 text-red-800' :
+                                  'bg-gray-100 text-gray-800'
                                 }`}>
                                 {item.demand_trend}
                               </span>
                             </td>
                             <td className="px-4 py-3">
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${item.priority === 'urgent' ? 'bg-red-100 text-red-800' :
-                                  item.priority === 'high' ? 'bg-orange-100 text-orange-800' :
-                                    item.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                                      'bg-green-100 text-green-800'
+                                item.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                                  item.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-green-100 text-green-800'
                                 }`}>
                                 {item.priority}
                               </span>
